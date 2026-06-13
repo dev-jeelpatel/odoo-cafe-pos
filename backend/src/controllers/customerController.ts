@@ -11,8 +11,22 @@ export const getCustomers = async (req: Request, res: Response): Promise<void> =
       { email: { contains: s, mode: 'insensitive' } },
     ];
   }
-  const customers = await prisma.customer.findMany({ where, orderBy: { name: 'asc' } });
-  res.json(customers);
+  const customers = await prisma.customer.findMany({
+    where,
+    orderBy: { name: 'asc' },
+    include: {
+      orders: { where: { isPaid: true }, select: { totalAmount: true, createdAt: true } },
+    },
+  });
+
+  const result = customers.map(c => {
+    const { orders, ...rest } = c;
+    const totalSpent = orders.reduce((s, o) => s + o.totalAmount, 0);
+    const lastVisit = orders.length ? orders.reduce((latest, o) => o.createdAt > latest ? o.createdAt : latest, orders[0].createdAt) : null;
+    return { ...rest, orderCount: orders.length, totalSpent, lastVisit };
+  });
+
+  res.json(result);
 };
 
 export const createCustomer = async (req: Request, res: Response): Promise<void> => {

@@ -5,9 +5,10 @@ import { Customer } from '@/types';
 import api from '@/lib/api';
 import PageLayout from '@/components/ui/PageLayout';
 import Modal from '@/components/ui/Modal';
-import { Plus, Pencil, Trash2, Search, Mail, Phone, MoreVertical, LayoutList, LayoutGrid } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, Mail, Phone, MoreVertical, LayoutList, LayoutGrid, Users, UserPlus, Repeat, Wallet, ShoppingBag, Clock } from 'lucide-react';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
+import { format } from 'date-fns';
 
 export default function CustomersPage() {
   const qc = useQueryClient();
@@ -16,6 +17,7 @@ export default function CustomersPage() {
   const [modal, setModal] = useState(false);
   const [editing, setEditing] = useState<Customer | null>(null);
   const [form, setForm] = useState({ name: '', email: '', phone: '' });
+  const [saving, setSaving] = useState(false);
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -36,20 +38,36 @@ export default function CustomersPage() {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSaving(true);
     try {
       if (editing) await api.put(`/customers/${editing.id}`, form);
       else await api.post('/customers', form);
       qc.invalidateQueries({ queryKey: ['customers'] });
       setModal(false);
-      toast.success(editing ? 'Updated' : 'Customer created');
+      toast.success(editing ? 'Customer updated' : 'Customer created');
     } catch (err: any) { toast.error(err.response?.data?.message || 'Error'); }
+    finally { setSaving(false); }
   };
 
-  const del = async (id: string) => {
-    if (!confirm('Delete?')) return;
-    await api.delete(`/customers/${id}`);
-    qc.invalidateQueries({ queryKey: ['customers'] });
-    toast.success('Deleted');
+  const del = async (c: Customer) => {
+    if ((c.orderCount || 0) > 0) {
+      toast.error(`Can't delete "${c.name}" — they have ${c.orderCount} order${c.orderCount !== 1 ? 's' : ''} on record.`);
+      return;
+    }
+    if (!confirm(`Delete customer "${c.name}"?`)) return;
+    try {
+      await api.delete(`/customers/${c.id}`);
+      qc.invalidateQueries({ queryKey: ['customers'] });
+      toast.success('Customer deleted');
+    } catch (err: any) { toast.error(err.response?.data?.message || 'Error deleting customer'); }
+  };
+
+  const now = new Date();
+  const stats = {
+    total: customers.length,
+    newThisMonth: customers.filter(c => c.createdAt && new Date(c.createdAt).getMonth() === now.getMonth() && new Date(c.createdAt).getFullYear() === now.getFullYear()).length,
+    repeat: customers.filter(c => (c.orderCount || 0) > 1).length,
+    revenue: customers.reduce((s, c) => s + (c.totalSpent || 0), 0),
   };
 
   return (
@@ -66,50 +84,107 @@ export default function CustomersPage() {
         <button onClick={openCreate} className="btn-primary flex items-center gap-2"><Plus size={16} />Add Customer</button>
       </div>
     }>
+      {/* Stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+        <div className="card flex items-center gap-3 py-4 hover:shadow-md hover:-translate-y-0.5 transition-all">
+          <div className="bg-indigo-50 text-indigo-600 p-2.5 rounded-xl"><Users size={20} /></div>
+          <div><p className="text-xs text-gray-500">Total Customers</p><p className="text-xl font-bold text-gray-900">{stats.total}</p></div>
+        </div>
+        <div className="card flex items-center gap-3 py-4 hover:shadow-md hover:-translate-y-0.5 transition-all">
+          <div className="bg-blue-50 text-blue-600 p-2.5 rounded-xl"><UserPlus size={20} /></div>
+          <div><p className="text-xs text-gray-500">New This Month</p><p className="text-xl font-bold text-gray-900">{stats.newThisMonth}</p></div>
+        </div>
+        <div className="card flex items-center gap-3 py-4 hover:shadow-md hover:-translate-y-0.5 transition-all">
+          <div className="bg-purple-50 text-purple-600 p-2.5 rounded-xl"><Repeat size={20} /></div>
+          <div><p className="text-xs text-gray-500">Repeat Customers</p><p className="text-xl font-bold text-gray-900">{stats.repeat}</p></div>
+        </div>
+        <div className="card flex items-center gap-3 py-4 hover:shadow-md hover:-translate-y-0.5 transition-all">
+          <div className="bg-green-50 text-green-600 p-2.5 rounded-xl"><Wallet size={20} /></div>
+          <div><p className="text-xs text-gray-500">Total Revenue</p><p className="text-xl font-bold text-gray-900">₹{stats.revenue.toFixed(2)}</p></div>
+        </div>
+      </div>
+
       {customers.length === 0 ? (
         <div className="text-center py-16 text-gray-400">
-          <p className="text-lg font-medium">No customers found</p>
-          <p className="text-sm mt-1">Add your first customer to get started.</p>
+          <Users size={40} className="mx-auto mb-3 opacity-30" />
+          <p className="text-lg font-medium">{search ? 'No customers match your search' : 'No customers found'}</p>
+          <p className="text-sm mt-1 mb-4">{search ? 'Try a different search term.' : 'Add your first customer to get started.'}</p>
+          {!search && (
+            <button onClick={openCreate} className="btn-primary inline-flex items-center gap-2"><Plus size={16} />Add Customer</button>
+          )}
         </div>
       ) : view === 'list' ? (
-        <div className="card p-0 overflow-hidden divide-y divide-gray-100">
-          {customers.map(c => (
-            <div key={c.id} className="flex items-center gap-4 px-4 py-3 hover:bg-gray-50">
-              <div className="flex items-center gap-3 w-56 min-w-0 flex-shrink-0">
-                <div className="w-10 h-10 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center font-bold flex-shrink-0">{c.name[0].toUpperCase()}</div>
-                <p className="font-semibold truncate">{c.name}</p>
-              </div>
-              <div className="flex-1 flex items-center gap-8 text-sm text-gray-500 min-w-0">
-                <div className="flex items-center gap-2 w-56 min-w-0"><Mail size={14} className="text-gray-400 flex-shrink-0" /><span className="truncate">{c.email || '—'}</span></div>
-                <div className="flex items-center gap-2 flex-shrink-0"><Phone size={14} className="text-gray-400" />{c.phone || '—'}</div>
-              </div>
-              <div className="relative flex-shrink-0">
-                <button onClick={() => setMenuOpen(menuOpen === c.id ? null : c.id)} className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-500"><MoreVertical size={16} /></button>
-                {menuOpen === c.id && (
-                  <div ref={menuRef} className="absolute right-0 top-full mt-1 w-32 bg-white border border-gray-200 rounded-lg shadow-lg z-10 overflow-hidden">
-                    <button onClick={() => { openEdit(c); setMenuOpen(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-gray-50 text-gray-700"><Pencil size={14} />Edit</button>
-                    <button onClick={() => { del(c.id); setMenuOpen(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-red-50 text-red-500"><Trash2 size={14} />Delete</button>
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
+        <div className="card p-0 overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 border-b">
+              <tr>
+                <th className="text-left px-4 py-3 font-semibold text-gray-600">Customer</th>
+                <th className="text-left px-4 py-3 font-semibold text-gray-600">Contact</th>
+                <th className="text-left px-4 py-3 font-semibold text-gray-600">Orders</th>
+                <th className="text-left px-4 py-3 font-semibold text-gray-600">Total Spent</th>
+                <th className="text-left px-4 py-3 font-semibold text-gray-600">Last Visit</th>
+                <th className="px-4 py-3" />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {customers.map(c => (
+                <tr key={c.id} className="hover:bg-gray-50 transition-colors group">
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 transition-transform group-hover:scale-110">{c.name[0].toUpperCase()}</div>
+                      <span className="font-medium text-gray-800 group-hover:text-indigo-700 transition-colors truncate">{c.name}</span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-gray-500">
+                    <div className="flex items-center gap-2"><Mail size={13} className="text-gray-400 flex-shrink-0" /><span className="truncate">{c.email || '—'}</span></div>
+                    <div className="flex items-center gap-2 mt-0.5"><Phone size={13} className="text-gray-400 flex-shrink-0" />{c.phone || '—'}</div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className={clsx('text-xs font-medium px-2 py-1 rounded-full inline-flex items-center gap-1 transition-colors', (c.orderCount || 0) > 0 ? 'bg-indigo-50 text-indigo-700 group-hover:bg-indigo-100' : 'bg-gray-100 text-gray-400')}>
+                      <ShoppingBag size={11} /> {c.orderCount || 0}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 font-semibold text-gray-700">₹{(c.totalSpent || 0).toFixed(2)}</td>
+                  <td className="px-4 py-3 text-gray-400 text-xs">
+                    {c.lastVisit ? (
+                      <span className="flex items-center gap-1.5"><Clock size={12} />{format(new Date(c.lastVisit), 'dd MMM yyyy')}</span>
+                    ) : '—'}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <div className="relative inline-block">
+                      <button onClick={() => setMenuOpen(menuOpen === c.id ? null : c.id)} className="p-1.5 hover:bg-gray-100 hover:scale-110 rounded-lg text-gray-500 transition-all"><MoreVertical size={16} /></button>
+                      {menuOpen === c.id && (
+                        <div ref={menuRef} className="absolute right-0 top-full mt-1 w-36 bg-white border border-gray-200 rounded-lg shadow-lg z-10 overflow-hidden">
+                          <button onClick={() => { openEdit(c); setMenuOpen(null); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-gray-50 text-gray-700"><Pencil size={14} />Edit</button>
+                          <button onClick={() => { del(c); setMenuOpen(null); }} className={clsx('flex items-center gap-2 w-full px-3 py-2 text-sm', (c.orderCount || 0) > 0 ? 'text-gray-300 cursor-not-allowed' : 'hover:bg-red-50 text-red-500')}><Trash2 size={14} />Delete</button>
+                        </div>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {customers.map(c => (
-            <div key={c.id} className="card">
+            <div key={c.id} className="card hover:shadow-lg hover:-translate-y-1 transition-all group relative">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center font-bold">{c.name[0].toUpperCase()}</div>
+                <div className="w-12 h-12 bg-emerald-100 text-emerald-700 rounded-2xl flex items-center justify-center font-bold text-lg flex-shrink-0 transition-transform group-hover:scale-110 group-hover:rotate-3">{c.name[0].toUpperCase()}</div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold truncate">{c.name}</p>
-                  <p className="text-xs text-gray-500">{c.phone}</p>
-                  <p className="text-xs text-gray-400 truncate">{c.email}</p>
+                  <p className="font-semibold text-gray-800 truncate group-hover:text-indigo-700 transition-colors">{c.name}</p>
+                  <p className="text-xs text-gray-500 truncate flex items-center gap-1.5 mt-0.5"><Phone size={11} />{c.phone || '—'}</p>
+                  <p className="text-xs text-gray-400 truncate flex items-center gap-1.5 mt-0.5"><Mail size={11} />{c.email || '—'}</p>
                 </div>
               </div>
-              <div className="flex gap-1 mt-3 justify-end">
-                <button onClick={() => openEdit(c)} className="p-1.5 hover:bg-indigo-50 rounded-lg text-indigo-600"><Pencil size={14} /></button>
-                <button onClick={() => del(c.id)} className="p-1.5 hover:bg-red-50 rounded-lg text-red-500"><Trash2 size={14} /></button>
+              <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-50 text-xs">
+                <span className="flex items-center gap-1 text-gray-500"><ShoppingBag size={12} />{c.orderCount || 0} orders</span>
+                <span className="font-bold text-gray-700">₹{(c.totalSpent || 0).toFixed(2)}</span>
+              </div>
+              <div className="flex gap-1 mt-2 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                <button onClick={() => openEdit(c)} className="p-1.5 hover:bg-indigo-50 hover:scale-110 rounded-lg text-indigo-600 transition-all"><Pencil size={14} /></button>
+                <button onClick={() => del(c)} className={clsx('p-1.5 rounded-lg transition-all', (c.orderCount || 0) > 0 ? 'text-gray-300 cursor-not-allowed' : 'text-red-500 hover:bg-red-50 hover:scale-110')}><Trash2 size={14} /></button>
               </div>
             </div>
           ))}
@@ -118,12 +193,23 @@ export default function CustomersPage() {
 
       <Modal isOpen={modal} onClose={() => setModal(false)} title={editing ? 'Edit Customer' : 'Add Customer'} size="sm">
         <form onSubmit={submit} className="space-y-3">
-          <input required value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="Full name" className="input" />
+          {/* Live preview */}
+          <div className="flex items-center gap-3 bg-gray-50 rounded-xl p-3 border border-gray-100">
+            <div className="w-12 h-12 bg-emerald-100 text-emerald-700 rounded-2xl flex items-center justify-center font-bold text-lg flex-shrink-0">
+              {form.name.trim() ? form.name.trim()[0].toUpperCase() : '?'}
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs text-gray-400">Preview</p>
+              <p className="font-semibold text-gray-800 truncate">{form.name.trim() || 'Customer name'}</p>
+            </div>
+          </div>
+
+          <input required value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="Full name" className="input" autoFocus />
           <input value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} placeholder="Phone number" className="input" />
           <input type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} placeholder="Email (optional)" className="input" />
           <div className="flex gap-2">
             <button type="button" onClick={() => setModal(false)} className="btn-secondary flex-1">Cancel</button>
-            <button type="submit" className="btn-primary flex-1">{editing ? 'Update' : 'Create'}</button>
+            <button type="submit" disabled={saving} className="btn-primary flex-1 disabled:opacity-60">{saving ? 'Saving...' : editing ? 'Update' : 'Create'}</button>
           </div>
         </form>
       </Modal>
