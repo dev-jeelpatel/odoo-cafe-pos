@@ -13,12 +13,60 @@ export const getMenu = async (_req: Request, res: Response): Promise<void> => {
   res.json({ categories, products });
 };
 
-export const createOrder = async (req: Request, res: Response): Promise<void> => {
+interface OtpEntry {
+  code: string;
+  expiresAt: number;
+  verified: boolean;
+}
+
+const otpStore = new Map<string, OtpEntry>();
+const OTP_TTL_MS = 5 * 60 * 1000;
+const PHONE_REGEX = /^[6-9]\d{9}$/;
+
+export const sendOtp = async (req: Request, res: Response): Promise<void> => {
+  const { phone } = req.body;
+  if (!PHONE_REGEX.test(phone || '')) {
+    res.status(400).json({ message: 'Enter a valid 10-digit phone number' });
+    return;
+  }
+  const code = String(Math.floor(100000 + Math.random() * 900000));
+  otpStore.set(phone, { code, expiresAt: Date.now() + OTP_TTL_MS, verified: false });
+  console.log(`[OTP] ${phone} -> ${code}`);
+  res.json({ message: 'OTP sent', ...(process.env.NODE_ENV !== 'production' && { otp: code }) });
+};
+
+export const verifyOtp = async (req: Request, res: Response): Promise<void> => {
+  const { phone, code } = req.body;
+  const entry = otpStore.get(phone);
+  if (!entry || entry.expiresAt < Date.now()) {
+    res.status(400).json({ message: 'OTP expired, please request a new one' });
+    return;
+  }
+  if (entry.code !== code) {
+    res.status(400).json({ message: 'Incorrect OTP' });
+    return;
+  }
+  entry.verified = true;
+  res.json({ verified: true });
+};
+
+export const createOrder = async (req: any, res: Response): Promise<void> => {
   try {
     const { items, type, tableNumber, notes, customerName, customerPhone } = req.body;
 
     if (!Array.isArray(items) || items.length === 0) {
       res.status(400).json({ message: 'Order must contain at least one item' });
+      return;
+    }
+
+    if (!PHONE_REGEX.test(customerPhone || '')) {
+      res.status(400).json({ message: 'A valid phone number is required' });
+      return;
+    }
+
+    const otpEntry = otpStore.get(customerPhone);
+    if (!otpEntry || !otpEntry.verified || otpEntry.expiresAt < Date.now()) {
+      res.status(400).json({ message: 'Please verify your phone number with OTP before placing the order' });
       return;
     }
 
@@ -48,29 +96,30 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
       taxAmount += (lineTotal * item.tax) / 100;
     });
 
-    let customer;
-    if (customerPhone) {
-      customer = await Customer.findOne({ phone: customerPhone });
-      if (!customer) {
-        customer = await Customer.create({ name: customerName || 'Guest', phone: customerPhone, email: '' });
-      }
+    let customer = await Customer.findOne({ phone: customerPhone });
+    if (!customer) {
+      customer = await Customer.create({ name: customerName || 'Guest', phone: customerPhone, email: '' });
     }
 
     const orderNumber = await generateOrderNumber();
     const order = await Order.create({
       orderNumber,
-      customer: customer?._id,
+      customer: customer._id,
       items: orderItems,
       notes: tableNumber ? `Table: ${tableNumber}${notes ? ' | ' + notes : ''}` : (notes || ''),
       type: type === 'dine-in' ? 'dine-in' : 'takeaway',
-      status: 'pending',
-      kitchenStatus: 'pending',
+      status: 'confirmed',
+      kitchenStatus: 'to-cook',
       subtotal,
       taxAmount,
       total: subtotal + taxAmount,
     });
 
-    const populated = await Order.findById(order._id).populate('customer');
+    otpStore.delete(customerPhone);
+
+    const populated = await Order.findById(order._id).populate('table').populate('customer');
+    req.io?.emit('kitchen:new-order', populated);
+    req.io?.emit('order:updated', populated);
     res.status(201).json(populated);
   } catch (err: any) {
     res.status(400).json({ message: err.message });

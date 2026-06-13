@@ -7,6 +7,7 @@ import { getSocket } from '@/lib/socket';
 import { ChefHat, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
+import { statusColors } from '@/lib/orderStatus';
 
 const STAGES: { key: Order['kitchenStatus']; label: string; color: string }[] = [
   { key: 'to-cook', label: 'To Cook', color: 'border-red-400 bg-red-50' },
@@ -87,6 +88,7 @@ export default function KDSPage() {
                       <div>
                         <span className="font-bold text-orange-400 font-mono">{order.orderNumber}</span>
                         {order.table && <span className="text-gray-400 text-xs ml-2">T{order.table.number}</span>}
+                        <span className={clsx('badge capitalize ml-2', statusColors[order.status])}>{order.status}</span>
                       </div>
                       <div className="text-xs text-gray-400">
                         {order.type}

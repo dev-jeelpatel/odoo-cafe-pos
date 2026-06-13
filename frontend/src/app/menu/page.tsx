@@ -22,6 +22,54 @@ export default function CustomerMenuPage() {
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({ name: '', phone: '', orderType: 'dine-in' as 'dine-in' | 'takeaway', tableNumber: '', notes: '' });
+  const [otp, setOtp] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpVerified, setOtpVerified] = useState(false);
+  const [sendingOtp, setSendingOtp] = useState(false);
+  const [verifyingOtp, setVerifyingOtp] = useState(false);
+
+  const PHONE_REGEX = /^[6-9]\d{9}$/;
+
+  const handlePhoneChange = (value: string) => {
+    setForm(f => ({ ...f, phone: value }));
+    setOtpSent(false);
+    setOtpVerified(false);
+    setOtp('');
+  };
+
+  const sendOtp = async () => {
+    if (!PHONE_REGEX.test(form.phone)) {
+      toast.error('Enter a valid 10-digit phone number');
+      return;
+    }
+    setSendingOtp(true);
+    try {
+      const res = await api.post('/public/send-otp', { phone: form.phone });
+      setOtpSent(true);
+      toast.success(res.data.otp ? `OTP sent (dev: ${res.data.otp})` : 'OTP sent to your phone');
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to send OTP');
+    } finally {
+      setSendingOtp(false);
+    }
+  };
+
+  const verifyOtp = async () => {
+    if (otp.length !== 6) {
+      toast.error('Enter the 6-digit OTP');
+      return;
+    }
+    setVerifyingOtp(true);
+    try {
+      await api.post('/public/verify-otp', { phone: form.phone, code: otp });
+      setOtpVerified(true);
+      toast.success('Phone verified');
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Invalid OTP');
+    } finally {
+      setVerifyingOtp(false);
+    }
+  };
 
   const { data, isLoading } = useQuery<{ categories: Category[]; products: Product[] }>({
     queryKey: ['public-menu'],
@@ -67,6 +115,10 @@ export default function CustomerMenuPage() {
     if (cartItems.length === 0) return;
     if (form.orderType === 'dine-in' && !form.tableNumber.trim()) {
       toast.error('Please enter your table number');
+      return;
+    }
+    if (!otpVerified) {
+      toast.error('Please verify your phone number with OTP');
       return;
     }
     setSubmitting(true);
@@ -260,14 +312,36 @@ export default function CustomerMenuPage() {
             <input value={form.tableNumber} onChange={e => setForm(f => ({ ...f, tableNumber: e.target.value }))} placeholder="Table number" className="input" />
           )}
           <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Your name" className="input" />
-          <input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="Phone number" className="input" />
+
+          <div className="flex gap-2">
+            <input value={form.phone} onChange={e => handlePhoneChange(e.target.value)} placeholder="Phone number" className="input" maxLength={10} disabled={otpVerified} />
+            <button
+              type="button"
+              onClick={sendOtp}
+              disabled={sendingOtp || otpVerified || !PHONE_REGEX.test(form.phone)}
+              className="btn-secondary shrink-0 disabled:opacity-50"
+            >
+              {otpVerified ? 'Verified' : sendingOtp ? 'Sending...' : otpSent ? 'Resend' : 'Send OTP'}
+            </button>
+          </div>
+
+          {otpSent && !otpVerified && (
+            <div className="flex gap-2">
+              <input value={otp} onChange={e => setOtp(e.target.value.replace(/\D/g, ''))} placeholder="6-digit OTP" className="input" maxLength={6} />
+              <button type="button" onClick={verifyOtp} disabled={verifyingOtp} className="btn-primary shrink-0">
+                {verifyingOtp ? 'Verifying...' : 'Verify'}
+              </button>
+            </div>
+          )}
+          {otpVerified && <p className="text-xs text-green-600 -mt-1">✓ Phone number verified</p>}
+
           <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Special instructions (optional)" className="input" rows={2} />
 
           <div className="flex justify-between font-bold text-base pt-2 border-t border-gray-100">
             <span>Total</span><span>₹{total.toFixed(2)}</span>
           </div>
-          <button onClick={placeOrder} disabled={submitting} className="btn-primary w-full">
-            {submitting ? 'Placing order...' : 'Place Order'}
+          <button onClick={placeOrder} disabled={submitting || !otpVerified} className="btn-primary w-full">
+            {submitting ? 'Placing order...' : !otpVerified ? 'Verify phone to continue' : 'Place Order'}
           </button>
         </div>
       </Modal>

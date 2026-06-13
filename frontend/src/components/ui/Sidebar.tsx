@@ -51,20 +51,34 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
         <nav className="flex-1 overflow-y-auto py-3 px-2">
           {links.map(({ href, label, icon: Icon }) => (
-            <Link
-              key={href}
-              href={href}
-              onClick={onClose}
-              className={clsx(
-                'flex items-center gap-3 px-3 py-2.5 rounded-lg mb-0.5 text-sm font-medium transition-colors',
-                pathname.startsWith(href) && href !== '/'
-                  ? 'bg-indigo-600 text-white'
-                  : 'text-gray-300 hover:bg-gray-800 hover:text-white'
-              )}
-            >
-              <Icon size={18} />
-              {label}
-            </Link>
+            href === '/kds' ? (
+              <a
+                key={href}
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={onClose}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-lg mb-0.5 text-sm font-medium transition-colors text-gray-300 hover:bg-gray-800 hover:text-white"
+              >
+                <Icon size={18} />
+                {label}
+              </a>
+            ) : (
+              <Link
+                key={href}
+                href={href}
+                onClick={onClose}
+                className={clsx(
+                  'flex items-center gap-3 px-3 py-2.5 rounded-lg mb-0.5 text-sm font-medium transition-colors',
+                  pathname.startsWith(href) && href !== '/'
+                    ? 'bg-indigo-600 text-white'
+                    : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                )}
+              >
+                <Icon size={18} />
+                {label}
+              </Link>
+            )
           ))}
         </nav>
 
