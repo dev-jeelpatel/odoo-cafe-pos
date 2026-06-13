@@ -22,6 +22,7 @@ export interface Product {
   unit: 'PIECE' | 'KG' | 'LITER';
   tax: number;
   description: string;
+  imageUrl?: string | null;
   active: boolean;
 }
 
