@@ -23,6 +23,8 @@ export const getOrders = async (req: Request, res: Response): Promise<void> => {
   if (req.query.status) filter.status = req.query.status;
   if (req.query.kitchenStatus) filter.kitchenStatus = req.query.kitchenStatus;
   if (req.query.session) filter.session = req.query.session;
+  if (req.query.isPaid !== undefined) filter.isPaid = req.query.isPaid === 'true';
+  if (req.query.source === 'menu') filter.waiter = { $exists: false };
   if (req.query.search) {
     filter.$or = [
       { orderNumber: { $regex: req.query.search, $options: 'i' } },

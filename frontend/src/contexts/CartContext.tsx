@@ -1,6 +1,6 @@
 'use client';
 import React, { createContext, useContext, useState, ReactNode } from 'react';
-import { Product, CartItem, Table, Customer, Coupon, Promotion } from '@/types';
+import { Product, CartItem, Table, Customer, Coupon, Promotion, Order } from '@/types';
 
 interface CartContextType {
   items: CartItem[];
@@ -17,6 +17,7 @@ interface CartContextType {
   removeItem: (productId: string) => void;
   updateQty: (productId: string, qty: number) => void;
   clearCart: () => void;
+  loadOrder: (order: Order) => void;
   setSelectedTable: (table: Table | null) => void;
   setSelectedCustomer: (customer: Customer | null) => void;
   setOrderType: (type: 'dine-in' | 'takeaway' | 'delivery') => void;
@@ -75,6 +76,31 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setCurrentOrderId(null);
   };
 
+  const loadOrder = (order: Order) => {
+    setItems(order.items.map(item => ({
+      product: {
+        _id: item.product,
+        name: item.name,
+        category: { _id: '', name: '', color: item.categoryColor || '#6366f1' },
+        price: item.price,
+        unit: 'piece',
+        tax: item.tax,
+        description: '',
+        isAvailable: true,
+      },
+      quantity: item.quantity,
+    })));
+    setSelectedTable(order.table || null);
+    setSelectedCustomer(order.customer || null);
+    setOrderType(order.type);
+    setNotes(order.notes || '');
+    setCouponState(null);
+    setCouponDiscount(order.couponDiscount || 0);
+    setPromotionState(null);
+    setPromotionDiscount(order.promotionDiscount || 0);
+    setCurrentOrderId(order._id);
+  };
+
   const setCoupon = (c: Coupon | null, discount: number) => { setCouponState(c); setCouponDiscount(discount); };
   const setPromotion = (p: Promotion | null, discount: number) => { setPromotionState(p); setPromotionDiscount(discount); };
 
@@ -82,7 +108,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     <CartContext.Provider value={{
       items, selectedTable, selectedCustomer, orderType, notes,
       coupon, couponDiscount, promotion, promotionDiscount, currentOrderId,
-      addItem, removeItem, updateQty, clearCart,
+      addItem, removeItem, updateQty, clearCart, loadOrder,
       setSelectedTable, setSelectedCustomer, setOrderType, setNotes,
       setCoupon, setPromotion, setCurrentOrderId,
       subtotal, taxAmount, total,
