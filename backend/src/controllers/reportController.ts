@@ -41,7 +41,7 @@ export const getDashboard = async (req: Request, res: Response): Promise<void> =
     }),
   ]);
 
-  const totalRevenue = orders.reduce((s, o) => s + o.totalAmount, 0);
+  const totalRevenue = orders.reduce((sum, o) => sum + o.totalAmount, 0);
   const totalOrders = orders.length;
   const avgOrderValue = totalOrders ? totalRevenue / totalOrders : 0;
 
