@@ -11,6 +11,7 @@ import paymentMethodRoutes from './paymentMethods';
 import sessionRoutes from './sessions';
 import orderRoutes from './orders';
 import reportRoutes from './reports';
+import publicRoutes from './public';
 
 const router = Router();
 
@@ -26,5 +27,6 @@ router.use('/payment-methods', paymentMethodRoutes);
 router.use('/sessions', sessionRoutes);
 router.use('/orders', orderRoutes);
 router.use('/reports', reportRoutes);
+router.use('/public', publicRoutes);
 
 export default router;
