@@ -8,35 +8,30 @@ import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import { format } from 'date-fns';
 import {
-  ChefHat, Search, Clock, Flame, CheckCircle2, Play, X,
-  SortAsc, Filter,
+  ChefHat, Search, Flame, CheckCircle2, Play, X,
+  SortAsc, Filter, Utensils, ShoppingBag, Truck, AlertTriangle, Volume2, VolumeX,
 } from 'lucide-react';
 
 type KS = 'TO_COOK' | 'PREPARING' | 'COMPLETED';
 const NEXT: Partial<Record<KS, KS>> = { TO_COOK: 'PREPARING', PREPARING: 'COMPLETED' };
+const TYPE_ICONS: Record<string, typeof Utensils> = { DINE_IN: Utensils, TAKEAWAY: ShoppingBag, DELIVERY: Truck };
 
-/* Timer — stops (freezes) when `stopped` is true */
-function ElapsedTimer({ createdAt, stopped }: { createdAt: string; stopped: boolean }) {
-  const startMs = new Date(createdAt).getTime();
-  const [elapsed, setElapsed] = useState(() => Math.floor((Date.now() - startMs) / 1000));
-
-  useEffect(() => {
-    if (stopped) return;
-    const id = setInterval(() => setElapsed(Math.floor((Date.now() - startMs) / 1000)), 1000);
-    return () => clearInterval(id);
-  }, [stopped, startMs]);
-
-  const mins = Math.floor(elapsed / 60);
-  const secs = elapsed % 60;
-  const urgent = mins >= 5 && !stopped;
-  return (
-    <span className={clsx('font-mono text-xs font-bold flex items-center gap-1',
-      stopped ? 'text-green-400' : urgent ? 'text-red-400' : 'text-orange-400')}>
-      <Clock size={11} />
-      {String(mins).padStart(2, '0')}:{String(secs).padStart(2, '0')}
-      {stopped && <span className="ml-1 text-green-500 text-[10px]">✓</span>}
-    </span>
-  );
+/* Beep alert for new tickets */
+function playChime() {
+  try {
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = 880;
+    gain.gain.setValueAtTime(0.001, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.2, ctx.currentTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.4);
+  } catch {}
 }
 
 /* Single order card */
@@ -53,6 +48,14 @@ function OrderCard({
 }) {
   const isCompleted = stage === 'COMPLETED';
   const next = NEXT[stage];
+  const TypeIcon = TYPE_ICONS[order.orderType] || Utensils;
+
+  const totalItems = order.items.length;
+  const doneItems = order.items.filter(i => i.kitchenCompleted).length;
+  const progress = isCompleted ? 100 : totalItems > 0 ? Math.round((doneItems / totalItems) * 100) : 0;
+
+  const ageMins = Math.floor((Date.now() - new Date(order.createdAt).getTime()) / 60000);
+  const isOverdue = !isCompleted && ageMins >= 10;
 
   return (
     <div
@@ -60,8 +63,10 @@ function OrderCard({
       onDragStart={() => onDragStart(order)}
       onDragEnd={onDragEnd}
       className={clsx(
-      'rounded-xl overflow-hidden mb-3 border transition-all cursor-grab active:cursor-grabbing',
+      'rounded-xl overflow-hidden mb-3 border transition-all cursor-grab active:cursor-grabbing animate-ticket-in',
+      'hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/30',
       isDragging && 'opacity-40 ring-2 ring-indigo-400',
+      isOverdue && 'ring-2 ring-red-500/60 animate-pulse',
       isCompleted
         ? 'border-green-700/40 bg-gray-800/60'
         : stage === 'PREPARING'
@@ -80,12 +85,24 @@ function OrderCard({
               T{order.table.tableNumber}
             </span>
           )}
-          <span className="text-gray-500 text-xs capitalize truncate hidden sm:block">
+          <span className="text-gray-500 text-xs capitalize truncate hidden sm:flex items-center gap-1">
+            <TypeIcon size={11} />
             {order.orderType.replace('_', '-').toLowerCase()}
           </span>
+          {isOverdue && <AlertTriangle size={13} className="text-red-400 shrink-0" />}
         </div>
         <span className="text-gray-400 text-xs shrink-0">{format(new Date(order.createdAt), 'hh:mm aa')}</span>
       </div>
+
+      {/* Progress bar */}
+      {!isCompleted && totalItems > 0 && (
+        <div className="h-1 bg-gray-700/60">
+          <div
+            className={clsx('h-full transition-all', progress === 100 ? 'bg-green-500' : 'bg-yellow-500')}
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      )}
 
       {/* Items */}
       <div className="px-3 py-2.5 space-y-2">
@@ -124,7 +141,11 @@ function OrderCard({
 
       {/* Footer */}
       <div className="flex items-center justify-between px-3 py-2 border-t border-gray-700/60">
-        <ElapsedTimer createdAt={order.createdAt} stopped={isCompleted} />
+        <div className="flex items-center gap-2">
+          {!isCompleted && totalItems > 0 && (
+            <span className="text-xs text-gray-500 font-mono">{doneItems}/{totalItems} items</span>
+          )}
+        </div>
 
         {next && (
           <button
@@ -152,21 +173,38 @@ function OrderCard({
   );
 }
 
+/* Live clock */
+function LiveClock() {
+  const [now, setNow] = useState<Date | null>(null);
+  useEffect(() => {
+    setNow(new Date());
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  return (
+    <span className="font-mono text-sm font-bold text-gray-300 tabular-nums">{now ? format(now, 'hh:mm:ss aa') : '--:--:-- --'}</span>
+  );
+}
+
 /* Column header */
 function ColHeader({ label, count, icon: Icon, color }: { label: string; count: number; icon: React.ElementType; color: string }) {
+  const accent = label === 'To Cook' ? 'from-red-500 to-red-600' : label === 'Preparing' ? 'from-yellow-500 to-yellow-600' : 'from-green-500 to-green-600';
   return (
-    <div className={clsx('flex items-center justify-between px-4 py-3 border-b flex-shrink-0', color)}>
-      <div className="flex items-center gap-2">
-        <Icon size={16} className={
-          label === 'To Cook' ? 'text-red-400' : label === 'Preparing' ? 'text-yellow-400' : 'text-green-400'
-        } />
-        <span className={clsx('font-bold text-sm uppercase tracking-wide',
-          label === 'To Cook' ? 'text-red-300' : label === 'Preparing' ? 'text-yellow-300' : 'text-green-300'
-        )}>{label}</span>
+    <div className={clsx('flex flex-col flex-shrink-0', color)}>
+      <div className={clsx('h-1 bg-gradient-to-r', accent)} />
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800/60">
+        <div className="flex items-center gap-2">
+          <Icon size={16} className={
+            label === 'To Cook' ? 'text-red-400' : label === 'Preparing' ? 'text-yellow-400' : 'text-green-400'
+          } />
+          <span className={clsx('font-bold text-sm uppercase tracking-wide',
+            label === 'To Cook' ? 'text-red-300' : label === 'Preparing' ? 'text-yellow-300' : 'text-green-300'
+          )}>{label}</span>
+        </div>
+        <span className={clsx('text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center',
+          label === 'To Cook' ? 'bg-red-500' : label === 'Preparing' ? 'bg-yellow-500' : 'bg-green-500'
+        )}>{count}</span>
       </div>
-      <span className={clsx('text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center',
-        label === 'To Cook' ? 'bg-red-500' : label === 'Preparing' ? 'bg-yellow-500' : 'bg-green-500'
-      )}>{count}</span>
     </div>
   );
 }
@@ -180,6 +218,7 @@ export default function KDSPage() {
   const [showAllCompleted, setShowAllCompleted] = useState(false);
   const [draggedOrder, setDraggedOrder] = useState<Order | null>(null);
   const [dragOverStage, setDragOverStage] = useState<KS | null>(null);
+  const [soundOn, setSoundOn] = useState(true);
 
   const { data: orders = [] } = useQuery<Order[]>({
     queryKey: ['kds-orders'],
@@ -198,15 +237,20 @@ export default function KDSPage() {
   useEffect(() => {
     const socket = getSocket();
     const refresh = () => qc.invalidateQueries({ queryKey: ['kds-orders'] });
-    socket.on('kitchen:new-order', refresh);
+    const onNewOrder = () => {
+      refresh();
+      if (soundOn) playChime();
+      toast('New order received!', { icon: '🔔' });
+    };
+    socket.on('kitchen:new-order', onNewOrder);
     socket.on('kitchen:status-update', refresh);
     socket.on('kitchen:item-update', refresh);
     return () => {
-      socket.off('kitchen:new-order', refresh);
+      socket.off('kitchen:new-order', onNewOrder);
       socket.off('kitchen:status-update', refresh);
       socket.off('kitchen:item-update', refresh);
     };
-  }, [qc]);
+  }, [qc, soundOn]);
 
   /* Move order to a target stage (used by both the "next stage" button and drag-and-drop) */
   const moveToStage = async (order: Order, target: KS) => {
@@ -253,7 +297,7 @@ export default function KDSPage() {
 
   /* Move order to next stage (button) */
   const moveStage = (order: Order) => {
-    const next = NEXT[order.kitchenStatus];
+    const next = NEXT[order.kitchenStatus as KS];
     if (next) moveToStage(order, next);
   };
 
@@ -372,8 +416,8 @@ export default function KDSPage() {
               onChange={e => setSelectedCategory(e.target.value)}
               className="bg-transparent text-sm text-gray-300 outline-none"
             >
-              <option value="all">All Categories</option>
-              {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              <option value="all" className="bg-gray-800 text-gray-100">All Categories</option>
+              {categories.map(c => <option key={c.id} value={c.id} className="bg-gray-800 text-gray-100">{c.name}</option>)}
             </select>
           </div>
 
@@ -383,10 +427,10 @@ export default function KDSPage() {
             onChange={e => setSelectedType(e.target.value)}
             className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-300 outline-none"
           >
-            <option value="all">All Types</option>
-            <option value="DINE_IN">Dine-in</option>
-            <option value="TAKEAWAY">Takeaway</option>
-            <option value="DELIVERY">Delivery</option>
+            <option value="all" className="bg-gray-800 text-gray-100">All Types</option>
+            <option value="DINE_IN" className="bg-gray-800 text-gray-100">Dine-in</option>
+            <option value="TAKEAWAY" className="bg-gray-800 text-gray-100">Takeaway</option>
+            <option value="DELIVERY" className="bg-gray-800 text-gray-100">Delivery</option>
           </select>
         </div>
 
@@ -399,18 +443,27 @@ export default function KDSPage() {
               onChange={e => setSortBy(e.target.value as 'oldest' | 'newest')}
               className="bg-transparent text-sm text-gray-300 outline-none"
             >
-              <option value="oldest">Oldest first</option>
-              <option value="newest">Newest first</option>
+              <option value="oldest" className="bg-gray-800 text-gray-100">Oldest first</option>
+              <option value="newest" className="bg-gray-800 text-gray-100">Newest first</option>
             </select>
           </div>
+          <button
+            onClick={() => setSoundOn(s => !s)}
+            className={clsx('p-2 rounded-lg border transition-colors', soundOn ? 'bg-gray-800 border-gray-700 text-gray-300 hover:text-white' : 'bg-gray-800 border-gray-700 text-gray-500')}
+            title={soundOn ? 'Mute new-order alerts' : 'Unmute new-order alerts'}
+          >
+            {soundOn ? <Volume2 size={15} /> : <VolumeX size={15} />}
+          </button>
+          <div className="w-px h-8 bg-gray-700 mx-1 shrink-0 hidden sm:block" />
+          <LiveClock />
         </div>
       </header>
 
       {/* ── Three columns ── */}
-      <div className="flex-1 grid grid-cols-3 gap-0 overflow-hidden">
+      <div className="flex-1 flex md:grid md:grid-cols-3 gap-0 overflow-x-auto overflow-y-hidden snap-x snap-mandatory">
         {/* TO COOK */}
         <div
-          className={clsx('flex flex-col border-r border-gray-800 overflow-hidden transition-colors',
+          className={clsx('flex flex-col border-r border-gray-800 overflow-hidden transition-colors min-w-[85vw] md:min-w-0 snap-start',
             dragOverStage === 'TO_COOK' && 'bg-red-500/5 ring-2 ring-inset ring-red-500/40')}
           onDragOver={e => { e.preventDefault(); setDragOverStage('TO_COOK'); }}
           onDragLeave={() => setDragOverStage(s => (s === 'TO_COOK' ? null : s))}
@@ -438,7 +491,7 @@ export default function KDSPage() {
 
         {/* PREPARING */}
         <div
-          className={clsx('flex flex-col border-r border-gray-800 overflow-hidden transition-colors',
+          className={clsx('flex flex-col border-r border-gray-800 overflow-hidden transition-colors min-w-[85vw] md:min-w-0 snap-start',
             dragOverStage === 'PREPARING' && 'bg-yellow-500/5 ring-2 ring-inset ring-yellow-500/40')}
           onDragOver={e => { e.preventDefault(); setDragOverStage('PREPARING'); }}
           onDragLeave={() => setDragOverStage(s => (s === 'PREPARING' ? null : s))}
@@ -466,7 +519,7 @@ export default function KDSPage() {
 
         {/* COMPLETED */}
         <div
-          className={clsx('flex flex-col overflow-hidden transition-colors',
+          className={clsx('flex flex-col overflow-hidden transition-colors min-w-[85vw] md:min-w-0 snap-start',
             dragOverStage === 'COMPLETED' && 'bg-green-500/5 ring-2 ring-inset ring-green-500/40')}
           onDragOver={e => { e.preventDefault(); setDragOverStage('COMPLETED'); }}
           onDragLeave={() => setDragOverStage(s => (s === 'COMPLETED' ? null : s))}
