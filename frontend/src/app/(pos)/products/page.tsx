@@ -5,9 +5,10 @@ import { Product, Category } from '@/types';
 import api from '@/lib/api';
 import PageLayout from '@/components/ui/PageLayout';
 import Modal from '@/components/ui/Modal';
-import { Plus, Pencil, Trash2, LayoutList, LayoutGrid, Search, Tag } from 'lucide-react';
+import { Plus, Pencil, Trash2, LayoutList, LayoutGrid, Search, Tag, Package, CheckCircle2, Layers, IndianRupee } from 'lucide-react';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
+import { getProductEmoji } from '@/lib/productVisuals';
 
 const UNITS = ['PIECE', 'KG', 'LITER'] as const;
 const PRESET_COLORS = ['#6366f1','#ef4444','#f59e0b','#10b981','#3b82f6','#ec4899','#8b5cf6','#14b8a6','#f97316','#06b6d4'];
@@ -23,6 +24,7 @@ export default function ProductsPage() {
   const [showCatDropdown, setShowCatDropdown] = useState(false);
   const [newCatColor, setNewCatColor] = useState('#6366f1');
   const [creatingCat, setCreatingCat] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const { data: products = [], isLoading } = useQuery<Product[]>({ queryKey: ['products'], queryFn: () => api.get('/products').then(r => r.data) });
   const { data: categories = [] } = useQuery<Category[]>({ queryKey: ['categories'], queryFn: () => api.get('/categories').then(r => r.data) });
@@ -34,6 +36,13 @@ export default function ProductsPage() {
     const q = search.toLowerCase();
     return p.name.toLowerCase().includes(q) || p.category?.name?.toLowerCase().includes(q) || p.description?.toLowerCase().includes(q);
   });
+
+  const stats = {
+    total: products.length,
+    active: products.filter(p => p.active).length,
+    categories: new Set(products.map(p => p.categoryId)).size,
+    avgPrice: products.length ? products.reduce((s, p) => s + p.price, 0) / products.length : 0,
+  };
 
   const openCreate = () => {
     setEditing(null);
@@ -67,6 +76,7 @@ export default function ProductsPage() {
     e.preventDefault();
     if (!form.categoryId) { toast.error('Select or create a category'); return; }
     const payload = { ...form, price: parseFloat(form.price), tax: parseFloat(form.tax) };
+    setSaving(true);
     try {
       if (editing) await api.put(`/products/${editing.id}`, payload);
       else await api.post('/products', payload);
@@ -74,6 +84,7 @@ export default function ProductsPage() {
       setModal(false);
       toast.success(editing ? 'Product updated' : 'Product created');
     } catch (err: any) { toast.error(err.response?.data?.message || 'Error'); }
+    finally { setSaving(false); }
   };
 
   const del = async (id: string) => {
@@ -100,11 +111,35 @@ export default function ProductsPage() {
         <button onClick={openCreate} className="btn-primary flex items-center gap-2"><Plus size={16} />Add Product</button>
       </div>
     }>
+      {/* Stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+        <div className="card flex items-center gap-3 py-4 hover:shadow-md hover:-translate-y-0.5 transition-all">
+          <div className="bg-indigo-50 text-indigo-600 p-2.5 rounded-xl"><Package size={20} /></div>
+          <div><p className="text-xs text-gray-500">Total Products</p><p className="text-xl font-bold text-gray-900">{stats.total}</p></div>
+        </div>
+        <div className="card flex items-center gap-3 py-4 hover:shadow-md hover:-translate-y-0.5 transition-all">
+          <div className="bg-green-50 text-green-600 p-2.5 rounded-xl"><CheckCircle2 size={20} /></div>
+          <div><p className="text-xs text-gray-500">Active</p><p className="text-xl font-bold text-gray-900">{stats.active}</p></div>
+        </div>
+        <div className="card flex items-center gap-3 py-4 hover:shadow-md hover:-translate-y-0.5 transition-all">
+          <div className="bg-purple-50 text-purple-600 p-2.5 rounded-xl"><Layers size={20} /></div>
+          <div><p className="text-xs text-gray-500">Categories</p><p className="text-xl font-bold text-gray-900">{stats.categories}</p></div>
+        </div>
+        <div className="card flex items-center gap-3 py-4 hover:shadow-md hover:-translate-y-0.5 transition-all">
+          <div className="bg-amber-50 text-amber-600 p-2.5 rounded-xl"><IndianRupee size={20} /></div>
+          <div><p className="text-xs text-gray-500">Avg. Price</p><p className="text-xl font-bold text-gray-900">₹{stats.avgPrice.toFixed(2)}</p></div>
+        </div>
+      </div>
+
       {isLoading ? <p className="text-center text-gray-400 py-12">Loading...</p> :
        filtered.length === 0 ? (
         <div className="text-center py-16 text-gray-400">
+          <Package size={40} className="mx-auto mb-3 opacity-30" />
           <p className="text-lg font-medium">No products found</p>
-          <p className="text-sm mt-1">{search ? 'Try a different search term.' : 'Create your first product.'}</p>
+          <p className="text-sm mt-1 mb-4">{search ? 'Try a different search term.' : 'Create your first product.'}</p>
+          {!search && (
+            <button onClick={openCreate} className="btn-primary inline-flex items-center gap-2"><Plus size={16} />Add Product</button>
+          )}
         </div>
       ) : view === 'list' ? (
         <div className="card p-0 overflow-hidden">
@@ -122,19 +157,26 @@ export default function ProductsPage() {
             </thead>
             <tbody className="divide-y divide-gray-50">
               {filtered.map(p => (
-                <tr key={p.id} className={clsx('hover:bg-gray-50', !p.active && 'opacity-50')}>
-                  <td className="px-4 py-3 font-medium">{p.name}</td>
+                <tr key={p.id} className={clsx('hover:bg-gray-50 transition-colors group', !p.active && 'opacity-50')}>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl flex items-center justify-center text-lg flex-shrink-0 transition-transform group-hover:scale-110" style={{ backgroundColor: (p.category?.color || '#6366f1') + '1a' }}>
+                        {getProductEmoji(p.name, p.category?.name)}
+                      </div>
+                      <span className="font-medium text-gray-800 group-hover:text-indigo-700 transition-colors">{p.name}</span>
+                    </div>
+                  </td>
                   <td className="px-4 py-3">
                     {p.category && <span className="flex items-center gap-1.5 text-gray-600"><span className="w-3 h-3 rounded-full" style={{ backgroundColor: p.category.color }} />{p.category.name}</span>}
                   </td>
                   <td className="px-4 py-3 font-semibold">₹{p.price.toFixed(2)}</td>
                   <td className="px-4 py-3 text-gray-500">{p.unit}</td>
                   <td className="px-4 py-3 text-gray-500">{p.tax}%</td>
-                  <td className="px-4 py-3"><span className={`badge ${p.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>{p.active ? 'Active' : 'Inactive'}</span></td>
+                  <td className="px-4 py-3"><span className={clsx('badge transition-transform group-hover:scale-105', p.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500')}>{p.active ? 'Active' : 'Inactive'}</span></td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex gap-1 justify-end">
-                      <button onClick={() => openEdit(p)} className="p-1.5 hover:bg-indigo-50 rounded-lg text-indigo-600"><Pencil size={14} /></button>
-                      <button onClick={() => del(p.id)} className="p-1.5 hover:bg-red-50 rounded-lg text-red-500"><Trash2 size={14} /></button>
+                      <button onClick={() => openEdit(p)} className="p-1.5 hover:bg-indigo-50 hover:scale-110 rounded-lg text-indigo-600 transition-all"><Pencil size={14} /></button>
+                      <button onClick={() => del(p.id)} className="p-1.5 hover:bg-red-50 hover:scale-110 rounded-lg text-red-500 transition-all"><Trash2 size={14} /></button>
                     </div>
                   </td>
                 </tr>
@@ -145,17 +187,20 @@ export default function ProductsPage() {
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
           {filtered.map(p => (
-            <div key={p.id} className={clsx('card hover:shadow-md transition-shadow', !p.active && 'opacity-50')}>
+            <div key={p.id} className={clsx('card hover:shadow-lg hover:-translate-y-1 transition-all group relative', !p.active && 'opacity-50')}>
               <div className="flex items-center justify-between mb-2">
                 {p.category && <span className="flex items-center gap-1 text-xs text-gray-500"><span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: p.category.color }} />{p.category.name}</span>}
-                <span className={`badge text-xs ${p.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>{p.active ? 'Active' : 'Off'}</span>
+                <span className={clsx('badge text-xs', p.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500')}>{p.active ? 'Active' : 'Off'}</span>
               </div>
-              <p className="font-semibold text-gray-900 truncate">{p.name}</p>
-              <p className="text-indigo-600 font-bold mt-1">₹{p.price.toFixed(2)}</p>
-              <p className="text-xs text-gray-400 mt-0.5">{p.unit} · Tax {p.tax}%</p>
-              <div className="flex gap-1 mt-3 justify-end">
-                <button onClick={() => openEdit(p)} className="p-1.5 hover:bg-indigo-50 rounded-lg text-indigo-600"><Pencil size={14} /></button>
-                <button onClick={() => del(p.id)} className="p-1.5 hover:bg-red-50 rounded-lg text-red-500"><Trash2 size={14} /></button>
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-2 transition-transform group-hover:scale-110 group-hover:rotate-3" style={{ backgroundColor: (p.category?.color || '#6366f1') + '1a' }}>
+                {getProductEmoji(p.name, p.category?.name)}
+              </div>
+              <p className="font-semibold text-gray-900 truncate text-center group-hover:text-indigo-700 transition-colors">{p.name}</p>
+              <p className="text-indigo-600 font-bold mt-1 text-center">₹{p.price.toFixed(2)}</p>
+              <p className="text-xs text-gray-400 mt-0.5 text-center">{p.unit} · Tax {p.tax}%</p>
+              <div className="flex gap-1 mt-3 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                <button onClick={() => openEdit(p)} className="p-1.5 hover:bg-indigo-50 hover:scale-110 rounded-lg text-indigo-600 transition-all"><Pencil size={14} /></button>
+                <button onClick={() => del(p.id)} className="p-1.5 hover:bg-red-50 hover:scale-110 rounded-lg text-red-500 transition-all"><Trash2 size={14} /></button>
               </div>
             </div>
           ))}
@@ -164,7 +209,18 @@ export default function ProductsPage() {
 
       <Modal isOpen={modal} onClose={() => { setModal(false); setShowCatDropdown(false); }} title={editing ? 'Edit Product' : 'Add Product'}>
         <form onSubmit={submit} className="space-y-3">
-          <input required value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="Product name" className="input" />
+          {/* Live preview */}
+          <div className="flex items-center gap-3 bg-gray-50 rounded-xl p-3 border border-gray-100">
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0" style={{ backgroundColor: (categories.find(c => c.id === form.categoryId)?.color || '#6366f1') + '1a' }}>
+              {getProductEmoji(form.name || '', categories.find(c => c.id === form.categoryId)?.name)}
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs text-gray-400">Preview</p>
+              <p className="font-semibold text-gray-800 truncate">{form.name.trim() || 'Product name'}</p>
+            </div>
+          </div>
+
+          <input required value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="Product name" className="input" autoFocus />
 
           {/* Smart Category Field */}
           <div>
@@ -230,7 +286,7 @@ export default function ProductsPage() {
           </label>
           <div className="flex gap-2">
             <button type="button" onClick={() => setModal(false)} className="btn-secondary flex-1">Cancel</button>
-            <button type="submit" className="btn-primary flex-1">{editing ? 'Update' : 'Create'}</button>
+            <button type="submit" disabled={saving} className="btn-primary flex-1 disabled:opacity-60">{saving ? 'Saving...' : editing ? 'Update' : 'Create'}</button>
           </div>
         </form>
       </Modal>
