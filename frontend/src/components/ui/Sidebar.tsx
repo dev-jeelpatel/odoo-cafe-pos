@@ -2,29 +2,45 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSidebar } from '@/contexts/SidebarContext';
 import {
   Coffee, ShoppingCart, Users, LayoutGrid, Tag, Percent, CreditCard,
   BarChart3, LogOut, ChefHat, Layers, TicketPercent, Building2, X,
-  Clock, Shield, ReceiptText, Smartphone,
+  Clock, Shield, ReceiptText, PanelLeftClose, PanelLeftOpen,
 } from 'lucide-react';
 import clsx from 'clsx';
 
-const allLinks = [
-  { href: '/pos', label: 'POS Terminal', icon: ShoppingCart, roles: ['ADMIN', 'EMPLOYEE', 'CASHIER'] },
-  { href: '/orders', label: 'Orders', icon: LayoutGrid, roles: ['ADMIN', 'EMPLOYEE', 'CASHIER'] },
-  { href: '/customers', label: 'Customers', icon: Users, roles: ['ADMIN', 'EMPLOYEE', 'CASHIER'] },
-  { href: '/kds', label: 'Kitchen Display', icon: ChefHat, roles: ['ADMIN', 'EMPLOYEE', 'CASHIER'] },
-  { href: '/sessions', label: 'Sessions', icon: Clock, roles: ['ADMIN', 'EMPLOYEE', 'CASHIER'] },
-  { href: '/products', label: 'Products', icon: Coffee, roles: ['ADMIN'] },
-  { href: '/categories', label: 'Categories', icon: Tag, roles: ['ADMIN'] },
-  { href: '/floors', label: 'Floors & Tables', icon: Building2, roles: ['ADMIN'] },
-  { href: '/payment-methods', label: 'Payment Methods', icon: CreditCard, roles: ['ADMIN'] },
-  { href: '/coupons', label: 'Coupons', icon: TicketPercent, roles: ['ADMIN'] },
-  { href: '/promotions', label: 'Promotions', icon: Percent, roles: ['ADMIN'] },
-  { href: '/employees', label: 'Employees', icon: Layers, roles: ['ADMIN'] },
-  { href: '/reports', label: 'Reports', icon: BarChart3, roles: ['ADMIN'] },
-  { href: '/receipts', label: 'Receipts', icon: ReceiptText, roles: ['ADMIN'] },
-  { href: '/audit-logs', label: 'Audit Logs', icon: Shield, roles: ['ADMIN'] },
+const groups: { label: string; links: { href: string; label: string; icon: any; roles: string[] }[] }[] = [
+  {
+    label: 'Operations',
+    links: [
+      { href: '/pos', label: 'POS Terminal', icon: ShoppingCart, roles: ['ADMIN', 'EMPLOYEE', 'CASHIER'] },
+      { href: '/orders', label: 'Orders', icon: LayoutGrid, roles: ['ADMIN', 'EMPLOYEE', 'CASHIER'] },
+      { href: '/kds', label: 'Kitchen Display', icon: ChefHat, roles: ['ADMIN', 'EMPLOYEE', 'CASHIER'] },
+      { href: '/customers', label: 'Customers', icon: Users, roles: ['ADMIN', 'EMPLOYEE', 'CASHIER'] },
+      { href: '/sessions', label: 'Sessions', icon: Clock, roles: ['ADMIN', 'EMPLOYEE', 'CASHIER'] },
+    ],
+  },
+  {
+    label: 'Catalog',
+    links: [
+      { href: '/products', label: 'Products', icon: Coffee, roles: ['ADMIN'] },
+      { href: '/categories', label: 'Categories', icon: Tag, roles: ['ADMIN'] },
+      { href: '/floors', label: 'Floors & Tables', icon: Building2, roles: ['ADMIN'] },
+      { href: '/payment-methods', label: 'Payment Methods', icon: CreditCard, roles: ['ADMIN'] },
+      { href: '/coupons', label: 'Coupons', icon: TicketPercent, roles: ['ADMIN'] },
+      { href: '/promotions', label: 'Promotions', icon: Percent, roles: ['ADMIN'] },
+    ],
+  },
+  {
+    label: 'Management',
+    links: [
+      { href: '/employees', label: 'Employees', icon: Layers, roles: ['ADMIN'] },
+      { href: '/reports', label: 'Reports', icon: BarChart3, roles: ['ADMIN'] },
+      { href: '/receipts', label: 'Receipts', icon: ReceiptText, roles: ['ADMIN'] },
+      { href: '/audit-logs', label: 'Audit Logs', icon: Shield, roles: ['ADMIN'] },
+    ],
+  },
 ];
 
 interface SidebarProps { isOpen: boolean; onClose: () => void; }
@@ -32,58 +48,111 @@ interface SidebarProps { isOpen: boolean; onClose: () => void; }
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  const { collapsed, toggle } = useSidebar();
 
-  const links = allLinks.filter(l => user && l.roles.includes(user.role));
+  const isActive = (href: string) => pathname === href || (pathname.startsWith(href) && href !== '/');
 
   return (
     <>
       {isOpen && <div className="fixed inset-0 bg-black/40 z-30 lg:hidden" onClick={onClose} />}
       <aside className={clsx(
-        'fixed left-0 top-0 h-full w-64 bg-gray-900 text-white z-40 flex flex-col transition-transform duration-300',
-        isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        'fixed left-0 top-0 h-full bg-gray-900 text-white z-40 flex flex-col transition-all duration-300 border-r border-gray-800',
+        isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
+        collapsed ? 'w-20' : 'w-64'
       )}>
-        <div className="flex items-center justify-between p-4 border-b border-gray-700">
-          <div className="flex items-center gap-2">
-            <div className="bg-indigo-600 p-1.5 rounded-lg"><Coffee size={20} /></div>
-            <span className="font-bold text-lg">Cafe POS</span>
+        {/* Logo */}
+        <div className={clsx('flex items-center p-4 border-b border-gray-800 h-[57px]', collapsed ? 'justify-center' : 'justify-between')}>
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="bg-gradient-to-br from-indigo-500 to-purple-600 p-1.5 rounded-lg shadow-lg shadow-indigo-900/40 flex-shrink-0"><Coffee size={20} /></div>
+            {!collapsed && <span className="font-bold text-lg truncate">Cafe POS</span>}
           </div>
-          <button onClick={onClose} className="lg:hidden p-1 hover:bg-gray-700 rounded"><X size={18} /></button>
+          <button onClick={onClose} className="lg:hidden p-1 hover:bg-gray-800 rounded"><X size={18} /></button>
         </div>
 
-        <nav className="flex-1 overflow-y-auto py-3 px-2">
-          {links.map(({ href, label, icon: Icon }) => (
-            <Link key={href} href={href} onClick={onClose}
-              className={clsx(
-                'flex items-center gap-3 px-3 py-2.5 rounded-lg mb-0.5 text-sm font-medium transition-colors',
-                pathname === href || (pathname.startsWith(href) && href !== '/')
-                  ? 'bg-indigo-600 text-white'
-                  : 'text-gray-300 hover:bg-gray-800 hover:text-white'
-              )}
-            >
-              <Icon size={18} />
-              {label}
-            </Link>
-          ))}
-          <a href="/menu" target="_blank" rel="noopener noreferrer"
-            className="flex items-center gap-3 px-3 py-2.5 rounded-lg mb-0.5 text-sm font-medium transition-colors text-gray-300 hover:bg-gray-800 hover:text-white"
-          >
-            <Smartphone size={18} />
-            Customer Menu
-          </a>
+        {/* Nav */}
+        <nav className="flex-1 overflow-y-auto py-3 px-2.5 scrollbar-hide">
+          {groups.map(group => {
+            const visible = group.links.filter(l => user && l.roles.includes(user.role));
+            if (visible.length === 0) return null;
+            return (
+              <div key={group.label} className="mb-4">
+                {!collapsed && (
+                  <p className="px-3 mb-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-500">{group.label}</p>
+                )}
+                <div className="space-y-0.5">
+                  {visible.map(({ href, label, icon: Icon }) => {
+                    const active = isActive(href);
+                    return (
+                      <Link
+                        key={href}
+                        href={href}
+                        onClick={onClose}
+                        title={collapsed ? label : undefined}
+                        className={clsx(
+                          'group relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150',
+                          collapsed && 'justify-center px-0',
+                          active
+                            ? 'bg-gradient-to-r from-indigo-600 to-indigo-500 text-white shadow-md shadow-indigo-900/30'
+                            : 'text-gray-400 hover:bg-gray-800/70 hover:text-white'
+                        )}
+                      >
+                        {active && !collapsed && <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-1 rounded-r-full bg-white/80" />}
+                        <Icon size={18} className={clsx('flex-shrink-0 transition-transform', !active && 'group-hover:scale-110', active && 'drop-shadow-sm')} />
+                        {!collapsed && <span className="truncate">{label}</span>}
+                        {collapsed && (
+                          <span className="pointer-events-none absolute left-full ml-2 whitespace-nowrap rounded-md bg-gray-800 px-2 py-1 text-xs font-medium text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 z-50">
+                            {label}
+                          </span>
+                        )}
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
         </nav>
 
-        <div className="p-4 border-t border-gray-700">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-8 h-8 bg-indigo-600 rounded-full flex items-center justify-center text-xs font-bold">
+        {/* Collapse toggle */}
+        <div className="hidden lg:block border-t border-gray-800 p-2.5">
+          <button
+            onClick={toggle}
+            className={clsx('flex items-center gap-3 w-full px-3 py-2 rounded-xl text-sm font-medium text-gray-400 hover:bg-gray-800/70 hover:text-white transition-colors', collapsed && 'justify-center px-0')}
+            title={collapsed ? 'Expand sidebar' : undefined}
+          >
+            {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+            {!collapsed && <span>Collapse</span>}
+          </button>
+        </div>
+
+        {/* User */}
+        <div className={clsx('p-3 border-t border-gray-800', collapsed && 'flex flex-col items-center gap-2')}>
+          <div className={clsx('flex items-center gap-3 rounded-xl px-1', collapsed ? 'justify-center' : 'mb-2 px-2 py-1.5 hover:bg-gray-800/70 transition-colors')}>
+            <div className="w-9 h-9 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ring-2 ring-gray-800">
               {user?.name[0].toUpperCase()}
             </div>
-            <div>
-              <p className="text-sm font-medium">{user?.name}</p>
-              <p className="text-xs text-gray-400 capitalize">{user?.role.toLowerCase()}</p>
-            </div>
+            {!collapsed && (
+              <div className="min-w-0">
+                <p className="text-sm font-medium truncate">{user?.name}</p>
+                <p className="text-xs text-gray-400 capitalize truncate">{user?.role.toLowerCase()}</p>
+              </div>
+            )}
           </div>
-          <button onClick={logout} className="flex items-center gap-2 text-sm text-gray-400 hover:text-white transition-colors w-full">
-            <LogOut size={16} /> Sign out
+          <button
+            onClick={logout}
+            title={collapsed ? 'Sign out' : undefined}
+            className={clsx(
+              'group relative flex items-center gap-2 text-sm text-gray-400 hover:text-white hover:bg-red-500/10 transition-colors rounded-lg px-2 py-1.5',
+              collapsed ? 'justify-center w-9 h-9' : 'w-full'
+            )}
+          >
+            <LogOut size={16} className="flex-shrink-0" />
+            {!collapsed && 'Sign out'}
+            {collapsed && (
+              <span className="pointer-events-none absolute left-full ml-2 whitespace-nowrap rounded-md bg-gray-800 px-2 py-1 text-xs font-medium text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 z-50">
+                Sign out
+              </span>
+            )}
           </button>
         </div>
       </aside>
