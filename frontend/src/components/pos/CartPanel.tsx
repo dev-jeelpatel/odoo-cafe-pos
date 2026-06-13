@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useCart } from '@/contexts/CartContext';
-import { Minus, Plus, Trash2, Tag, Ticket, ChefHat, CreditCard, Table2 } from 'lucide-react';
+import { Minus, Plus, Trash2, Tag, Ticket, ChefHat, CreditCard, Table2, Smartphone } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import { useQueryClient } from '@tanstack/react-query';
@@ -9,6 +9,7 @@ import Modal from '@/components/ui/Modal';
 import TableSelector from './TableSelector';
 import CustomerSearch from './CustomerSearch';
 import PaymentModal from './PaymentModal';
+import PendingMenuOrders from './PendingMenuOrders';
 import clsx from 'clsx';
 
 const ORDER_TYPES: Array<{ value: 'DINE_IN' | 'TAKEAWAY' | 'DELIVERY'; label: string }> = [
@@ -23,6 +24,7 @@ export default function CartPanel() {
   const [tableModal, setTableModal] = useState(false);
   const [customerModal, setCustomerModal] = useState(false);
   const [payModal, setPayModal] = useState(false);
+  const [menuOrdersModal, setMenuOrdersModal] = useState(false);
   const [couponInput, setCouponInput] = useState('');
   const [savingOrder, setSavingOrder] = useState(false);
   const [sendingKitchen, setSendingKitchen] = useState(false);
@@ -134,6 +136,9 @@ export default function CartPanel() {
             {cart.selectedCustomer ? cart.selectedCustomer.name : 'Add Customer'}
           </button>
         </div>
+        <button onClick={() => setMenuOrdersModal(true)} className="w-full flex items-center justify-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200 font-medium hover:bg-indigo-100 transition-colors">
+          <Smartphone size={14} /> Customer Orders (Online)
+        </button>
       </div>
 
       {/* Cart items */}
@@ -221,6 +226,9 @@ export default function CartPanel() {
       </Modal>
       <Modal isOpen={customerModal} onClose={() => setCustomerModal(false)} title="Customer">
         <CustomerSearch onClose={() => setCustomerModal(false)} />
+      </Modal>
+      <Modal isOpen={menuOrdersModal} onClose={() => setMenuOrdersModal(false)} title="Customer Orders (Online)" size="lg">
+        <PendingMenuOrders onClose={() => setMenuOrdersModal(false)} />
       </Modal>
       {payModal && (
         <PaymentModal isOpen={payModal} onClose={() => setPayModal(false)} onSuccess={() => { setPayModal(false); cart.clearCart(); qc.invalidateQueries({ queryKey: ['orders'] }); }} />

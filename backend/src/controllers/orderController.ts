@@ -29,6 +29,8 @@ export const getOrders = async (req: Request, res: Response): Promise<void> => {
   if (req.query.kitchenStatus) where.kitchenStatus = (req.query.kitchenStatus as string).toUpperCase();
   if (req.query.session) where.sessionId = req.query.session as string;
   if (req.query.search) where.orderNumber = { contains: req.query.search as string, mode: 'insensitive' };
+  if (req.query.isPaid !== undefined) where.isPaid = req.query.isPaid === 'true';
+  if (req.query.source === 'menu') where.employeeId = null;
 
   const take = req.query.limit ? parseInt(req.query.limit as string) : undefined;
   const skip = req.query.offset ? parseInt(req.query.offset as string) : undefined;

@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import {
   Coffee, ShoppingCart, Users, LayoutGrid, Tag, Percent, CreditCard,
   BarChart3, LogOut, ChefHat, Layers, TicketPercent, Building2, X,
-  Clock, Shield, ReceiptText,
+  Clock, Shield, ReceiptText, Smartphone,
 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -64,6 +64,12 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               {label}
             </Link>
           ))}
+          <a href="/menu" target="_blank" rel="noopener noreferrer"
+            className="flex items-center gap-3 px-3 py-2.5 rounded-lg mb-0.5 text-sm font-medium transition-colors text-gray-300 hover:bg-gray-800 hover:text-white"
+          >
+            <Smartphone size={18} />
+            Customer Menu
+          </a>
         </nav>
 
         <div className="p-4 border-t border-gray-700">

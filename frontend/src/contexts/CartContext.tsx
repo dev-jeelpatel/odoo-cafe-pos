@@ -1,6 +1,6 @@
 'use client';
 import React, { createContext, useContext, useState, ReactNode } from 'react';
-import { Product, CartItem, Table, Customer, Coupon, Promotion } from '@/types';
+import { Product, CartItem, Table, Customer, Coupon, Promotion, Order } from '@/types';
 
 interface CartContextType {
   items: CartItem[];
@@ -24,6 +24,7 @@ interface CartContextType {
   setCoupon: (coupon: Coupon | null, discount: number) => void;
   setPromotion: (promotion: Promotion | null, discount: number) => void;
   setCurrentOrderId: (id: string | null) => void;
+  loadOrder: (order: Order) => void;
   subtotal: number;
   taxAmount: number;
   total: number;
@@ -73,13 +74,28 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const setCoupon = (c: Coupon | null, discount: number) => { setCouponState(c); setCouponDiscount(discount); };
   const setPromotion = (p: Promotion | null, discount: number) => { setPromotionState(p); setPromotionDiscount(discount); };
 
+  const loadOrder = (order: Order) => {
+    setItems(
+      order.items
+        .filter(i => i.product)
+        .map(i => ({ product: i.product as Product, quantity: i.quantity }))
+    );
+    setSelectedTable(order.table || null);
+    setSelectedCustomer(order.customer || null);
+    setOrderType(order.orderType);
+    setNotes(order.notes);
+    setCouponState(null); setCouponDiscount(0);
+    setPromotionState(null); setPromotionDiscount(0);
+    setCurrentOrderId(order.id);
+  };
+
   return (
     <CartContext.Provider value={{
       items, selectedTable, selectedCustomer, orderType, notes,
       coupon, couponDiscount, promotion, promotionDiscount, currentOrderId,
       addItem, removeItem, updateQty, clearCart,
       setSelectedTable, setSelectedCustomer, setOrderType, setNotes,
-      setCoupon, setPromotion, setCurrentOrderId,
+      setCoupon, setPromotion, setCurrentOrderId, loadOrder,
       subtotal, taxAmount, total,
     }}>
       {children}
