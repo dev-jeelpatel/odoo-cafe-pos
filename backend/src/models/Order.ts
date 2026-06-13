@@ -1,6 +1,7 @@
 import mongoose, { Document, Schema } from 'mongoose';
 
 export interface IOrderItem {
+  _id?: mongoose.Types.ObjectId;
   product: mongoose.Types.ObjectId;
   name: string;
   price: number;
