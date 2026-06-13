@@ -2,6 +2,17 @@
   "name": "cafe-pos-backend",
   "version": "1.0.0",
   "description": "Restaurant POS & KDS Backend",
+  "homepage": "https://github.com/dev-jeelpatel/odoo-cafe-pos#readme",
+  "bugs": {
+    "url": "https://github.com/dev-jeelpatel/odoo-cafe-pos/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dev-jeelpatel/odoo-cafe-pos.git"
+  },
+  "license": "ISC",
+  "author": "Jeel Patel | Areen Sharma",
+  "type": "commonjs",
   "main": "dist/index.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
