@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import {
   Coffee, ShoppingCart, Users, LayoutGrid, Tag, Percent, CreditCard,
   BarChart3, LogOut, ChefHat, Layers, TicketPercent, Building2, X,
-  Clock, Shield,
+  Clock, Shield, ReceiptText,
 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -23,6 +23,7 @@ const allLinks = [
   { href: '/promotions', label: 'Promotions', icon: Percent, roles: ['ADMIN'] },
   { href: '/employees', label: 'Employees', icon: Layers, roles: ['ADMIN'] },
   { href: '/reports', label: 'Reports', icon: BarChart3, roles: ['ADMIN'] },
+  { href: '/receipts', label: 'Receipts', icon: ReceiptText, roles: ['ADMIN'] },
   { href: '/audit-logs', label: 'Audit Logs', icon: Shield, roles: ['ADMIN'] },
 ];
 

@@ -8,10 +8,10 @@ export const getPaymentMethods = async (_req: Request, res: Response): Promise<v
 
 export const togglePaymentMethod = async (req: Request, res: Response): Promise<void> => {
   try {
-    const method = await prisma.paymentMethodConfig.update({
-      where: { id: req.params.id },
-      data: { enabled: req.body.enabled !== undefined ? req.body.isEnabled ?? req.body.enabled : undefined },
-    });
+    const data: any = {};
+    if (req.body.enabled !== undefined) data.enabled = req.body.enabled;
+    if (req.body.upiId !== undefined) data.upiId = req.body.upiId;
+    const method = await prisma.paymentMethodConfig.update({ where: { id: req.params.id }, data });
     res.json(method);
   } catch (err: any) { res.status(400).json({ message: err.message }); }
 };

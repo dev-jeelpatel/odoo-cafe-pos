@@ -74,6 +74,7 @@ export interface PaymentMethod {
   method: 'CASH' | 'UPI' | 'CARD';
   label: string;
   enabled: boolean;
+  upiId?: string | null;
 }
 
 export interface OrderItem {
