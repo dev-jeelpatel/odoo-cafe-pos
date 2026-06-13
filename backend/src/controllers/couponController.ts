@@ -21,7 +21,7 @@ export const updateCoupon = async (req: Request, res: Response): Promise<void> =
     const { code, discountType, discountValue, active, expiryDate } = req.body;
     const coupon = await prisma.coupon.update({
       where: { id: req.params.id },
-      data: { code: code?.toUpperCase(), discountType: discountType?.toUpperCase(), discountValue: discountValue !== undefined ? parseFloat(discountValue) : undefined, active, expiryDate: expiryDate ? new Date(expiryDate) : undefined },
+      data: { code: code?.toUpperCase(), discountType: discountType?.toUpperCase(), discountValue: discountValue !== undefined ? parseFloat(discountValue) : undefined, active, expiryDate: expiryDate ? new Date(expiryDate) : null },
     });
     res.json(coupon);
   } catch (err: any) { res.status(400).json({ message: err.message }); }
