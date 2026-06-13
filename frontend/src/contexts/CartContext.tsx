@@ -6,7 +6,7 @@ interface CartContextType {
   items: CartItem[];
   selectedTable: Table | null;
   selectedCustomer: Customer | null;
-  orderType: 'dine-in' | 'takeaway' | 'delivery';
+  orderType: 'DINE_IN' | 'TAKEAWAY' | 'DELIVERY';
   notes: string;
   coupon: Coupon | null;
   couponDiscount: number;
@@ -19,7 +19,7 @@ interface CartContextType {
   clearCart: () => void;
   setSelectedTable: (table: Table | null) => void;
   setSelectedCustomer: (customer: Customer | null) => void;
-  setOrderType: (type: 'dine-in' | 'takeaway' | 'delivery') => void;
+  setOrderType: (type: 'DINE_IN' | 'TAKEAWAY' | 'DELIVERY') => void;
   setNotes: (notes: string) => void;
   setCoupon: (coupon: Coupon | null, discount: number) => void;
   setPromotion: (promotion: Promotion | null, discount: number) => void;
@@ -35,7 +35,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
-  const [orderType, setOrderType] = useState<'dine-in' | 'takeaway' | 'delivery'>('dine-in');
+  const [orderType, setOrderType] = useState<'DINE_IN' | 'TAKEAWAY' | 'DELIVERY'>('DINE_IN');
   const [notes, setNotes] = useState('');
   const [coupon, setCouponState] = useState<Coupon | null>(null);
   const [couponDiscount, setCouponDiscount] = useState(0);
@@ -49,29 +49,24 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const addItem = (product: Product) => {
     setItems(prev => {
-      const existing = prev.find(i => i.product._id === product._id);
-      if (existing) return prev.map(i => i.product._id === product._id ? { ...i, quantity: i.quantity + 1 } : i);
+      const existing = prev.find(i => i.product.id === product.id);
+      if (existing) return prev.map(i => i.product.id === product.id ? { ...i, quantity: i.quantity + 1 } : i);
       return [...prev, { product, quantity: 1 }];
     });
   };
 
-  const removeItem = (productId: string) => setItems(prev => prev.filter(i => i.product._id !== productId));
+  const removeItem = (productId: string) => setItems(prev => prev.filter(i => i.product.id !== productId));
 
   const updateQty = (productId: string, qty: number) => {
     if (qty <= 0) { removeItem(productId); return; }
-    setItems(prev => prev.map(i => i.product._id === productId ? { ...i, quantity: qty } : i));
+    setItems(prev => prev.map(i => i.product.id === productId ? { ...i, quantity: qty } : i));
   };
 
   const clearCart = () => {
-    setItems([]);
-    setSelectedTable(null);
-    setSelectedCustomer(null);
-    setOrderType('dine-in');
-    setNotes('');
-    setCouponState(null);
-    setCouponDiscount(0);
-    setPromotionState(null);
-    setPromotionDiscount(0);
+    setItems([]); setSelectedTable(null); setSelectedCustomer(null);
+    setOrderType('DINE_IN'); setNotes('');
+    setCouponState(null); setCouponDiscount(0);
+    setPromotionState(null); setPromotionDiscount(0);
     setCurrentOrderId(null);
   };
 

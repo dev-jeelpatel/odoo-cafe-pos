@@ -44,7 +44,7 @@ export default function CustomerSearch({ onClose }: Props) {
           </div>
           <div className="space-y-1 max-h-60 overflow-y-auto">
             {customers.map(c => (
-              <button key={c._id} onClick={() => select(c)} className="w-full text-left p-3 hover:bg-indigo-50 rounded-lg transition-colors flex items-center gap-3">
+              <button key={c.id} onClick={() => select(c)} className="w-full text-left p-3 hover:bg-indigo-50 rounded-lg transition-colors flex items-center gap-3">
                 <UserCheck size={16} className="text-indigo-600" />
                 <div>
                   <p className="text-sm font-medium">{c.name}</p>

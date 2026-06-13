@@ -1,137 +1,167 @@
 export interface User {
-  _id: string;
+  id: string;
   name: string;
   email: string;
-  role: 'admin' | 'employee' | 'cashier';
-  isArchived: boolean;
+  role: 'ADMIN' | 'EMPLOYEE' | 'CASHIER';
+  archived: boolean;
   createdAt: string;
 }
 
 export interface Category {
-  _id: string;
+  id: string;
   name: string;
   color: string;
 }
 
 export interface Product {
-  _id: string;
+  id: string;
   name: string;
   category: Category;
+  categoryId: string;
   price: number;
-  unit: 'piece' | 'kg' | 'liter';
+  unit: 'PIECE' | 'KG' | 'LITER';
   tax: number;
   description: string;
-  isAvailable: boolean;
+  active: boolean;
 }
 
 export interface Floor {
-  _id: string;
+  id: string;
   name: string;
 }
 
 export interface Table {
-  _id: string;
-  number: string;
+  id: string;
+  tableNumber: string;
   seats: number;
   floor: Floor;
-  status: 'available' | 'occupied' | 'reserved' | 'disabled';
-  isActive: boolean;
+  floorId: string;
+  status: 'AVAILABLE' | 'OCCUPIED' | 'RESERVED' | 'DISABLED';
+  active: boolean;
 }
 
 export interface Customer {
-  _id: string;
+  id: string;
   name: string;
   email: string;
   phone: string;
 }
 
 export interface Coupon {
-  _id: string;
+  id: string;
   code: string;
-  discountType: 'percentage' | 'fixed';
+  discountType: 'PERCENTAGE' | 'FIXED';
   discountValue: number;
-  isActive: boolean;
+  active: boolean;
+  expiryDate?: string | null;
 }
 
 export interface Promotion {
-  _id: string;
+  id: string;
   name: string;
-  type: 'product' | 'order';
-  conditionProduct?: Product;
-  conditionQty?: number;
-  conditionOrderValue?: number;
-  discountType: 'percentage' | 'fixed';
+  promotionType: 'PRODUCT' | 'ORDER';
+  conditionProduct?: Product | null;
+  conditionProductId?: string | null;
+  minQuantity?: number | null;
+  minOrderAmount?: number | null;
+  discountType: 'PERCENTAGE' | 'FIXED';
   discountValue: number;
-  isActive: boolean;
+  active: boolean;
 }
 
 export interface PaymentMethod {
-  _id: string;
-  name: 'cash' | 'upi' | 'card';
+  id: string;
+  method: 'CASH' | 'UPI' | 'CARD';
   label: string;
-  isEnabled: boolean;
+  enabled: boolean;
 }
 
 export interface OrderItem {
-  _id: string;
-  product: string;
-  name: string;
-  price: number;
+  id: string;
+  productId: string;
+  productName: string;
+  unitPrice: number;
   quantity: number;
+  totalPrice: number;
   tax: number;
   kitchenCompleted: boolean;
-  categoryColor?: string;
+  categoryColor?: string | null;
+  product?: Product;
 }
 
 export interface PaymentEntry {
-  method: 'cash' | 'upi' | 'card';
+  method: 'CASH' | 'UPI' | 'CARD';
   amount: number;
   transactionId?: string;
   reference?: string;
 }
 
+export interface Payment {
+  id: string;
+  paymentMethod: 'CASH' | 'UPI' | 'CARD';
+  amount: number;
+  transactionId?: string | null;
+  referenceNumber?: string | null;
+  paymentStatus: 'PENDING' | 'SUCCESS' | 'FAILED' | 'REFUNDED';
+  paidAt?: string | null;
+}
+
 export interface Order {
-  _id: string;
+  id: string;
   orderNumber: string;
-  table?: Table;
-  customer?: Customer;
-  waiter?: User;
-  session?: string;
+  table?: Table | null;
+  tableId?: string | null;
+  customer?: Customer | null;
+  customerId?: string | null;
+  employee?: Pick<User, 'id' | 'name'> | null;
+  employeeId?: string | null;
+  sessionId?: string | null;
   items: OrderItem[];
   notes: string;
-  type: 'dine-in' | 'takeaway' | 'delivery';
-  status: 'draft' | 'pending' | 'confirmed' | 'preparing' | 'ready' | 'served' | 'completed' | 'cancelled';
-  kitchenStatus: 'pending' | 'to-cook' | 'preparing' | 'completed';
+  orderType: 'DINE_IN' | 'TAKEAWAY' | 'DELIVERY';
+  status: 'DRAFT' | 'PENDING' | 'CONFIRMED' | 'PREPARING' | 'READY' | 'SERVED' | 'COMPLETED' | 'CANCELLED';
+  kitchenStatus: 'PENDING' | 'TO_COOK' | 'PREPARING' | 'COMPLETED';
   subtotal: number;
   taxAmount: number;
-  promotionDiscount: number;
-  couponDiscount: number;
-  total: number;
-  couponCode?: string;
-  appliedPromotion?: Promotion;
-  payments: PaymentEntry[];
+  discountAmount: number;
+  totalAmount: number;
+  couponCode?: string | null;
+  promotion?: Promotion | null;
+  payments: Payment[];
   isPaid: boolean;
   createdAt: string;
 }
 
 export interface Session {
-  _id: string;
-  user: User | string;
+  id: string;
+  userId: string;
+  user?: Pick<User, 'id' | 'name' | 'email'>;
   openedAt: string;
-  closedAt?: string;
-  isOpen: boolean;
-  summary?: {
-    totalSales: number;
-    totalOrders: number;
-    cashAmount: number;
-    upiAmount: number;
-    cardAmount: number;
-    taxCollected: number;
-    discountsApplied: number;
-  };
+  closedAt?: string | null;
+  status: 'OPEN' | 'CLOSED';
+  openingAmount: number;
+  closingAmount: number;
+  totalSales: number;
+  totalOrders: number;
+  cashAmount: number;
+  upiAmount: number;
+  cardAmount: number;
+  taxCollected: number;
+  discountsApplied: number;
 }
 
 export interface CartItem {
   product: Product;
   quantity: number;
+}
+
+export interface AuditLog {
+  id: string;
+  userId?: string | null;
+  user?: { name: string } | null;
+  action: string;
+  entityType: string;
+  entityId?: string | null;
+  details?: any;
+  createdAt: string;
 }

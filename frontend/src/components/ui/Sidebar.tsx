@@ -5,28 +5,28 @@ import { useAuth } from '@/contexts/AuthContext';
 import {
   Coffee, ShoppingCart, Users, LayoutGrid, Tag, Percent, CreditCard,
   BarChart3, LogOut, ChefHat, Layers, TicketPercent, Building2, X,
+  Clock, Shield,
 } from 'lucide-react';
 import clsx from 'clsx';
 
 const allLinks = [
-  { href: '/pos', label: 'POS Terminal', icon: ShoppingCart, roles: ['admin', 'employee', 'cashier'] },
-  { href: '/orders', label: 'Orders', icon: LayoutGrid, roles: ['admin', 'employee', 'cashier'] },
-  { href: '/customers', label: 'Customers', icon: Users, roles: ['admin', 'employee', 'cashier'] },
-  { href: '/kds', label: 'Kitchen Display', icon: ChefHat, roles: ['admin', 'employee', 'cashier'] },
-  { href: '/products', label: 'Products', icon: Coffee, roles: ['admin'] },
-  { href: '/categories', label: 'Categories', icon: Tag, roles: ['admin'] },
-  { href: '/floors', label: 'Floors & Tables', icon: Building2, roles: ['admin'] },
-  { href: '/payment-methods', label: 'Payment Methods', icon: CreditCard, roles: ['admin'] },
-  { href: '/coupons', label: 'Coupons', icon: TicketPercent, roles: ['admin'] },
-  { href: '/promotions', label: 'Promotions', icon: Percent, roles: ['admin'] },
-  { href: '/employees', label: 'Employees', icon: Layers, roles: ['admin'] },
-  { href: '/reports', label: 'Reports', icon: BarChart3, roles: ['admin'] },
+  { href: '/pos', label: 'POS Terminal', icon: ShoppingCart, roles: ['ADMIN', 'EMPLOYEE', 'CASHIER'] },
+  { href: '/orders', label: 'Orders', icon: LayoutGrid, roles: ['ADMIN', 'EMPLOYEE', 'CASHIER'] },
+  { href: '/customers', label: 'Customers', icon: Users, roles: ['ADMIN', 'EMPLOYEE', 'CASHIER'] },
+  { href: '/kds', label: 'Kitchen Display', icon: ChefHat, roles: ['ADMIN', 'EMPLOYEE', 'CASHIER'] },
+  { href: '/sessions', label: 'Sessions', icon: Clock, roles: ['ADMIN', 'EMPLOYEE', 'CASHIER'] },
+  { href: '/products', label: 'Products', icon: Coffee, roles: ['ADMIN'] },
+  { href: '/categories', label: 'Categories', icon: Tag, roles: ['ADMIN'] },
+  { href: '/floors', label: 'Floors & Tables', icon: Building2, roles: ['ADMIN'] },
+  { href: '/payment-methods', label: 'Payment Methods', icon: CreditCard, roles: ['ADMIN'] },
+  { href: '/coupons', label: 'Coupons', icon: TicketPercent, roles: ['ADMIN'] },
+  { href: '/promotions', label: 'Promotions', icon: Percent, roles: ['ADMIN'] },
+  { href: '/employees', label: 'Employees', icon: Layers, roles: ['ADMIN'] },
+  { href: '/reports', label: 'Reports', icon: BarChart3, roles: ['ADMIN'] },
+  { href: '/audit-logs', label: 'Audit Logs', icon: Shield, roles: ['ADMIN'] },
 ];
 
-interface SidebarProps {
-  isOpen: boolean;
-  onClose: () => void;
-}
+interface SidebarProps { isOpen: boolean; onClose: () => void; }
 
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
@@ -51,13 +51,10 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
         <nav className="flex-1 overflow-y-auto py-3 px-2">
           {links.map(({ href, label, icon: Icon }) => (
-            <Link
-              key={href}
-              href={href}
-              onClick={onClose}
+            <Link key={href} href={href} onClick={onClose}
               className={clsx(
                 'flex items-center gap-3 px-3 py-2.5 rounded-lg mb-0.5 text-sm font-medium transition-colors',
-                pathname.startsWith(href) && href !== '/'
+                pathname === href || (pathname.startsWith(href) && href !== '/')
                   ? 'bg-indigo-600 text-white'
                   : 'text-gray-300 hover:bg-gray-800 hover:text-white'
               )}
@@ -75,7 +72,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             </div>
             <div>
               <p className="text-sm font-medium">{user?.name}</p>
-              <p className="text-xs text-gray-400 capitalize">{user?.role}</p>
+              <p className="text-xs text-gray-400 capitalize">{user?.role.toLowerCase()}</p>
             </div>
           </div>
           <button onClick={logout} className="flex items-center gap-2 text-sm text-gray-400 hover:text-white transition-colors w-full">

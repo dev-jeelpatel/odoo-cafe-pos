@@ -1,7 +1,6 @@
 'use client';
 import { useState } from 'react';
 import { useCart } from '@/contexts/CartContext';
-import { useAuth } from '@/contexts/AuthContext';
 import { Minus, Plus, Trash2, Tag, Ticket, ChefHat, CreditCard, Table2 } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
@@ -12,9 +11,14 @@ import CustomerSearch from './CustomerSearch';
 import PaymentModal from './PaymentModal';
 import clsx from 'clsx';
 
+const ORDER_TYPES: Array<{ value: 'DINE_IN' | 'TAKEAWAY' | 'DELIVERY'; label: string }> = [
+  { value: 'DINE_IN', label: 'Dine-In' },
+  { value: 'TAKEAWAY', label: 'Takeaway' },
+  { value: 'DELIVERY', label: 'Delivery' },
+];
+
 export default function CartPanel() {
   const qc = useQueryClient();
-  const { user } = useAuth();
   const cart = useCart();
   const [tableModal, setTableModal] = useState(false);
   const [customerModal, setCustomerModal] = useState(false);
@@ -24,25 +28,23 @@ export default function CartPanel() {
   const [sendingKitchen, setSendingKitchen] = useState(false);
 
   const buildOrderPayload = () => ({
-    table: cart.selectedTable?._id,
-    customer: cart.selectedCustomer?._id,
-    type: cart.orderType,
+    tableId: cart.selectedTable?.id || null,
+    customerId: cart.selectedCustomer?.id || null,
+    orderType: cart.orderType,
     notes: cart.notes,
     items: cart.items.map(i => ({
-      product: i.product._id,
+      productId: i.product.id,
       name: i.product.name,
+      productName: i.product.name,
       price: i.product.price,
       quantity: i.quantity,
       tax: i.product.tax,
       categoryColor: i.product.category?.color,
     })),
-    subtotal: cart.subtotal,
-    taxAmount: cart.taxAmount,
     promotionDiscount: cart.promotionDiscount,
     couponDiscount: cart.couponDiscount,
     couponCode: cart.coupon?.code,
-    appliedPromotion: cart.promotion?._id,
-    total: cart.total,
+    promotionId: cart.promotion?.id,
   });
 
   const applyCoupon = async () => {
@@ -60,7 +62,7 @@ export default function CartPanel() {
     if (cart.items.length === 0) return;
     try {
       const { data } = await api.post('/orders/apply-promotions', {
-        items: cart.items.map(i => ({ product: i.product._id, quantity: i.quantity })),
+        items: cart.items.map(i => ({ productId: i.product.id, quantity: i.quantity })),
         subtotal: cart.subtotal,
       });
       if (data.promotion) {
@@ -76,15 +78,11 @@ export default function CartPanel() {
     if (cart.items.length === 0) { toast.error('Add items to cart'); return; }
     setSavingOrder(true);
     try {
-      const payload = buildOrderPayload();
-      let order;
       if (cart.currentOrderId) {
-        const { data } = await api.put(`/orders/${cart.currentOrderId}`, payload);
-        order = data;
+        await api.put(`/orders/${cart.currentOrderId}`, buildOrderPayload());
       } else {
-        const { data } = await api.post('/orders', payload);
-        order = data;
-        cart.setCurrentOrderId(order._id);
+        const { data } = await api.post('/orders', buildOrderPayload());
+        cart.setCurrentOrderId(data.id);
       }
       qc.invalidateQueries({ queryKey: ['orders'] });
       toast.success('Order saved as draft');
@@ -102,7 +100,7 @@ export default function CartPanel() {
       let orderId = cart.currentOrderId;
       if (!orderId) {
         const { data } = await api.post('/orders', buildOrderPayload());
-        orderId = data._id;
+        orderId = data.id;
         cart.setCurrentOrderId(orderId);
       } else {
         await api.put(`/orders/${orderId}`, buildOrderPayload());
@@ -119,20 +117,20 @@ export default function CartPanel() {
 
   return (
     <div className="flex flex-col h-full bg-white">
-      {/* Order info */}
+      {/* Order type & table/customer */}
       <div className="p-3 border-b border-gray-100 space-y-2">
-        <div className="flex gap-2">
-          {(['dine-in', 'takeaway', 'delivery'] as const).map(t => (
-            <button key={t} onClick={() => cart.setOrderType(t)} className={clsx('flex-1 py-1.5 text-xs rounded-lg font-medium capitalize transition-colors', cart.orderType === t ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600')}>
-              {t}
+        <div className="flex gap-1.5">
+          {ORDER_TYPES.map(t => (
+            <button key={t.value} onClick={() => cart.setOrderType(t.value)} className={clsx('flex-1 py-1.5 text-xs rounded-lg font-medium transition-colors', cart.orderType === t.value ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600')}>
+              {t.label}
             </button>
           ))}
         </div>
         <div className="flex gap-2">
-          <button onClick={() => setTableModal(true)} className={clsx('flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg flex-1 justify-center font-medium transition-colors', cart.selectedTable ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-gray-100 text-gray-600 hover:bg-gray-200')}>
-            <Table2 size={14} /> {cart.selectedTable ? `Table ${cart.selectedTable.number}` : 'Select Table'}
+          <button onClick={() => setTableModal(true)} className={clsx('flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg flex-1 justify-center font-medium transition-colors', cart.selectedTable ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-gray-100 text-gray-600')}>
+            <Table2 size={14} /> {cart.selectedTable ? `Table ${cart.selectedTable.tableNumber}` : 'Select Table'}
           </button>
-          <button onClick={() => setCustomerModal(true)} className={clsx('flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg flex-1 justify-center font-medium transition-colors', cart.selectedCustomer ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-gray-100 text-gray-600 hover:bg-gray-200')}>
+          <button onClick={() => setCustomerModal(true)} className={clsx('flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg flex-1 justify-center font-medium transition-colors', cart.selectedCustomer ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-gray-100 text-gray-600')}>
             {cart.selectedCustomer ? cart.selectedCustomer.name : 'Add Customer'}
           </button>
         </div>
@@ -146,25 +144,25 @@ export default function CartPanel() {
             <p className="text-sm">Cart is empty</p>
           </div>
         ) : cart.items.map(item => (
-          <div key={item.product._id} className="flex items-center gap-2 bg-gray-50 rounded-xl p-2.5">
+          <div key={item.product.id} className="flex items-center gap-2 bg-gray-50 rounded-xl p-2.5">
             <div className="w-1.5 h-10 rounded-full flex-shrink-0" style={{ backgroundColor: item.product.category?.color || '#6366f1' }} />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-gray-800 truncate">{item.product.name}</p>
               <p className="text-xs text-gray-500">₹{item.product.price} each</p>
             </div>
             <div className="flex items-center gap-1.5">
-              <button onClick={() => cart.updateQty(item.product._id, item.quantity - 1)} className="w-6 h-6 flex items-center justify-center rounded-full bg-gray-200 hover:bg-gray-300 transition-colors">
+              <button onClick={() => cart.updateQty(item.product.id, item.quantity - 1)} className="w-6 h-6 flex items-center justify-center rounded-full bg-gray-200 hover:bg-gray-300">
                 <Minus size={12} />
               </button>
               <span className="text-sm font-bold w-5 text-center">{item.quantity}</span>
-              <button onClick={() => cart.updateQty(item.product._id, item.quantity + 1)} className="w-6 h-6 flex items-center justify-center rounded-full bg-indigo-600 text-white hover:bg-indigo-700 transition-colors">
+              <button onClick={() => cart.updateQty(item.product.id, item.quantity + 1)} className="w-6 h-6 flex items-center justify-center rounded-full bg-indigo-600 text-white hover:bg-indigo-700">
                 <Plus size={12} />
               </button>
             </div>
             <div className="text-right min-w-[50px]">
               <p className="text-sm font-bold text-gray-800">₹{(item.product.price * item.quantity).toFixed(0)}</p>
             </div>
-            <button onClick={() => cart.removeItem(item.product._id)} className="p-1 hover:bg-red-100 rounded-lg text-red-400 hover:text-red-600 transition-colors">
+            <button onClick={() => cart.removeItem(item.product.id)} className="p-1 hover:bg-red-100 rounded-lg text-red-400">
               <Trash2 size={14} />
             </button>
           </div>
@@ -173,7 +171,7 @@ export default function CartPanel() {
 
       {/* Notes */}
       <div className="px-3 pb-2">
-        <textarea value={cart.notes} onChange={e => cart.setNotes(e.target.value)} placeholder="Order notes (e.g. No onion, Extra cheese...)" rows={2} className="input text-xs resize-none" />
+        <textarea value={cart.notes} onChange={e => cart.setNotes(e.target.value)} placeholder="Order notes (No onion, Extra cheese...)" rows={2} className="input text-xs resize-none" />
       </div>
 
       {/* Discounts */}
@@ -191,22 +189,10 @@ export default function CartPanel() {
 
       {/* Summary */}
       <div className="border-t border-gray-100 px-3 py-2 space-y-1 text-sm">
-        <div className="flex justify-between text-gray-500">
-          <span>Subtotal</span><span>₹{cart.subtotal.toFixed(2)}</span>
-        </div>
-        <div className="flex justify-between text-gray-500">
-          <span>Tax</span><span>₹{cart.taxAmount.toFixed(2)}</span>
-        </div>
-        {cart.promotionDiscount > 0 && (
-          <div className="flex justify-between text-green-600">
-            <span>Promotion ({cart.promotion?.name})</span><span>-₹{cart.promotionDiscount.toFixed(2)}</span>
-          </div>
-        )}
-        {cart.couponDiscount > 0 && (
-          <div className="flex justify-between text-green-600">
-            <span>Coupon ({cart.coupon?.code})</span><span>-₹{cart.couponDiscount.toFixed(2)}</span>
-          </div>
-        )}
+        <div className="flex justify-between text-gray-500"><span>Subtotal</span><span>₹{cart.subtotal.toFixed(2)}</span></div>
+        <div className="flex justify-between text-gray-500"><span>Tax</span><span>₹{cart.taxAmount.toFixed(2)}</span></div>
+        {cart.promotionDiscount > 0 && <div className="flex justify-between text-green-600"><span>Promotion</span><span>-₹{cart.promotionDiscount.toFixed(2)}</span></div>}
+        {cart.couponDiscount > 0 && <div className="flex justify-between text-green-600"><span>Coupon ({cart.coupon?.code})</span><span>-₹{cart.couponDiscount.toFixed(2)}</span></div>}
         <div className="flex justify-between font-bold text-gray-900 text-base border-t pt-1.5 mt-1">
           <span>Total</span><span>₹{cart.total.toFixed(2)}</span>
         </div>
@@ -218,8 +204,8 @@ export default function CartPanel() {
           <button onClick={saveOrder} disabled={savingOrder || cart.items.length === 0} className="btn-secondary text-sm py-2">
             {savingOrder ? 'Saving...' : 'Save Draft'}
           </button>
-          <button onClick={sendToKitchen} disabled={sendingKitchen || cart.items.length === 0} className="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors font-medium text-sm flex items-center justify-center gap-1.5 disabled:opacity-50">
-            <ChefHat size={16} /> {sendingKitchen ? 'Sending...' : 'Send to Kitchen'}
+          <button onClick={sendToKitchen} disabled={sendingKitchen || cart.items.length === 0} className="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 font-medium text-sm flex items-center justify-center gap-1.5 disabled:opacity-50">
+            <ChefHat size={16} /> {sendingKitchen ? 'Sending...' : 'To Kitchen'}
           </button>
         </div>
         <button onClick={() => setPayModal(true)} disabled={cart.items.length === 0} className="btn-primary w-full py-3 flex items-center justify-center gap-2 text-base">
@@ -237,11 +223,7 @@ export default function CartPanel() {
         <CustomerSearch onClose={() => setCustomerModal(false)} />
       </Modal>
       {payModal && (
-        <PaymentModal
-          isOpen={payModal}
-          onClose={() => setPayModal(false)}
-          onSuccess={() => { setPayModal(false); cart.clearCart(); qc.invalidateQueries({ queryKey: ['orders'] }); }}
-        />
+        <PaymentModal isOpen={payModal} onClose={() => setPayModal(false)} onSuccess={() => { setPayModal(false); cart.clearCart(); qc.invalidateQueries({ queryKey: ['orders'] }); }} />
       )}
     </div>
   );

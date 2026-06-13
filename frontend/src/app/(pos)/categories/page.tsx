@@ -24,7 +24,7 @@ export default function CategoriesPage() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      if (editing) await api.put(`/categories/${editing._id}`, form);
+      if (editing) await api.put(`/categories/${editing.id}`, form);
       else await api.post('/categories', form);
       qc.invalidateQueries({ queryKey: ['categories'] });
       setModal(false);
@@ -44,14 +44,14 @@ export default function CategoriesPage() {
       {isLoading ? <p className="text-center text-gray-400 py-12">Loading...</p> : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
           {categories.map(c => (
-            <div key={c._id} className="card flex flex-col items-center gap-3 py-5 hover:shadow-md transition-shadow">
+            <div key={c.id} className="card flex flex-col items-center gap-3 py-5 hover:shadow-md transition-shadow">
               <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white text-xl font-bold shadow-md" style={{ backgroundColor: c.color }}>
                 {c.name[0].toUpperCase()}
               </div>
               <p className="font-semibold text-gray-800 text-center">{c.name}</p>
               <div className="flex gap-1">
                 <button onClick={() => openEdit(c)} className="p-1.5 hover:bg-indigo-50 rounded-lg text-indigo-600"><Pencil size={14} /></button>
-                <button onClick={() => del(c._id)} className="p-1.5 hover:bg-red-50 rounded-lg text-red-500"><Trash2 size={14} /></button>
+                <button onClick={() => del(c.id)} className="p-1.5 hover:bg-red-50 rounded-lg text-red-500"><Trash2 size={14} /></button>
               </div>
             </div>
           ))}

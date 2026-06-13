@@ -1,6 +1,11 @@
-import Order from '../models/Order';
+import prisma from '../lib/prisma';
 
 export async function generateOrderNumber(): Promise<string> {
-  const count = await Order.countDocuments();
-  return `ORD-${String(count + 1).padStart(4, '0')}`;
+  const count = await prisma.order.count();
+  return `ORD-${String(count + 1).padStart(5, '0')}`;
+}
+
+export async function generateReceiptNumber(): Promise<string> {
+  const count = await prisma.receipt.count();
+  return `RCP-${String(count + 1).padStart(5, '0')}`;
 }

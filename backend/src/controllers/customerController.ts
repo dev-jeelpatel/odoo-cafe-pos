@@ -1,38 +1,35 @@
 import { Request, Response } from 'express';
-import Customer from '../models/Customer';
+import prisma from '../lib/prisma';
 
 export const getCustomers = async (req: Request, res: Response): Promise<void> => {
-  const filter: any = {};
+  const where: any = {};
   if (req.query.search) {
-    filter.$or = [
-      { name: { $regex: req.query.search, $options: 'i' } },
-      { phone: { $regex: req.query.search, $options: 'i' } },
+    const s = req.query.search as string;
+    where.OR = [
+      { name: { contains: s, mode: 'insensitive' } },
+      { phone: { contains: s, mode: 'insensitive' } },
+      { email: { contains: s, mode: 'insensitive' } },
     ];
   }
-  const customers = await Customer.find(filter).sort('name');
+  const customers = await prisma.customer.findMany({ where, orderBy: { name: 'asc' } });
   res.json(customers);
 };
 
 export const createCustomer = async (req: Request, res: Response): Promise<void> => {
   try {
-    const customer = await Customer.create(req.body);
-    res.status(201).json(customer);
-  } catch (err: any) {
-    res.status(400).json({ message: err.message });
-  }
+    const c = await prisma.customer.create({ data: { name: req.body.name, email: req.body.email || '', phone: req.body.phone || '' } });
+    res.status(201).json(c);
+  } catch (err: any) { res.status(400).json({ message: err.message }); }
 };
 
 export const updateCustomer = async (req: Request, res: Response): Promise<void> => {
   try {
-    const customer = await Customer.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    if (!customer) { res.status(404).json({ message: 'Customer not found' }); return; }
-    res.json(customer);
-  } catch (err: any) {
-    res.status(400).json({ message: err.message });
-  }
+    const c = await prisma.customer.update({ where: { id: req.params.id }, data: { name: req.body.name, email: req.body.email, phone: req.body.phone } });
+    res.json(c);
+  } catch (err: any) { res.status(400).json({ message: err.message }); }
 };
 
 export const deleteCustomer = async (req: Request, res: Response): Promise<void> => {
-  await Customer.findByIdAndDelete(req.params.id);
+  await prisma.customer.delete({ where: { id: req.params.id } });
   res.json({ message: 'Customer deleted' });
 };

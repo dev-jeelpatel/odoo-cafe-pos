@@ -1,9 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import User, { IUser } from '../models/User';
+import prisma from '../lib/prisma';
 
 export interface AuthRequest extends Request {
-  user?: IUser;
+  user?: { id: string; name: string; email: string; role: string };
+  io?: any;
 }
 
 export const protect = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
@@ -18,12 +19,15 @@ export const protect = async (req: AuthRequest, res: Response, next: NextFunctio
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as { id: string };
-    const user = await User.findById(decoded.id).select('-password');
-    if (!user || user.isArchived) {
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.id },
+      select: { id: true, name: true, email: true, role: true, archived: true },
+    });
+    if (!user || user.archived) {
       res.status(401).json({ message: 'User not found or archived' });
       return;
     }
-    req.user = user;
+    req.user = { id: user.id, name: user.name, email: user.email, role: user.role };
     next();
   } catch {
     res.status(401).json({ message: 'Token invalid or expired' });
@@ -31,7 +35,7 @@ export const protect = async (req: AuthRequest, res: Response, next: NextFunctio
 };
 
 export const adminOnly = (req: AuthRequest, res: Response, next: NextFunction): void => {
-  if (req.user?.role !== 'admin') {
+  if (req.user?.role !== 'ADMIN') {
     res.status(403).json({ message: 'Admin access required' });
     return;
   }

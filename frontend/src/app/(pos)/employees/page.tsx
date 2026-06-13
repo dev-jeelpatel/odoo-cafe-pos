@@ -9,24 +9,28 @@ import { Plus, Pencil, Trash2, Archive, Key } from 'lucide-react';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
 
-const roleColors = { admin: 'bg-red-100 text-red-700', employee: 'bg-blue-100 text-blue-700', cashier: 'bg-green-100 text-green-700' };
+const roleColors: Record<string, string> = {
+  ADMIN: 'bg-red-100 text-red-700',
+  EMPLOYEE: 'bg-blue-100 text-blue-700',
+  CASHIER: 'bg-green-100 text-green-700',
+};
 
 export default function EmployeesPage() {
   const qc = useQueryClient();
   const [modal, setModal] = useState(false);
   const [pwModal, setPwModal] = useState<string | null>(null);
   const [editing, setEditing] = useState<User | null>(null);
-  const [form, setForm] = useState({ name: '', email: '', password: '', role: 'employee' });
+  const [form, setForm] = useState({ name: '', email: '', password: '', role: 'EMPLOYEE' });
   const [newPw, setNewPw] = useState('');
 
   const { data: users = [] } = useQuery<User[]>({ queryKey: ['users'], queryFn: () => api.get('/users').then(r => r.data) });
 
-  const openCreate = () => { setEditing(null); setForm({ name: '', email: '', password: '', role: 'employee' }); setModal(true); };
+  const openCreate = () => { setEditing(null); setForm({ name: '', email: '', password: '', role: 'EMPLOYEE' }); setModal(true); };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      if (editing) await api.put(`/users/${editing._id}`, { name: form.name, email: form.email, role: form.role });
+      if (editing) await api.put(`/users/${editing.id}`, { name: form.name, email: form.email, role: form.role });
       else await api.post('/users', form);
       qc.invalidateQueries({ queryKey: ['users'] });
       setModal(false);
@@ -59,7 +63,7 @@ export default function EmployeesPage() {
     <PageLayout title="Employees" actions={<button onClick={openCreate} className="btn-primary flex items-center gap-2"><Plus size={16} />Add Employee</button>}>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {users.map(u => (
-          <div key={u._id} className={clsx('card', u.isArchived && 'opacity-60')}>
+          <div key={u.id} className={clsx('card', u.isArchived && 'opacity-60')}>
             <div className="flex items-start gap-3">
               <div className="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0">
                 {u.name[0].toUpperCase()}
@@ -68,16 +72,16 @@ export default function EmployeesPage() {
                 <p className="font-semibold truncate">{u.name}</p>
                 <p className="text-xs text-gray-500 truncate">{u.email}</p>
                 <div className="flex items-center gap-2 mt-1">
-                  <span className={clsx('badge capitalize', roleColors[u.role])}>{u.role}</span>
+                  <span className={clsx('badge', roleColors[u.role])}>{u.role}</span>
                   {u.isArchived && <span className="badge bg-gray-100 text-gray-500">Archived</span>}
                 </div>
               </div>
             </div>
             <div className="flex gap-1 mt-3 justify-end">
-              <button title="Change password" onClick={() => setPwModal(u._id)} className="p-1.5 hover:bg-yellow-50 rounded-lg text-yellow-600"><Key size={14} /></button>
+              <button title="Change password" onClick={() => setPwModal(u.id)} className="p-1.5 hover:bg-yellow-50 rounded-lg text-yellow-600"><Key size={14} /></button>
               <button onClick={() => { setEditing(u); setForm({ name: u.name, email: u.email, password: '', role: u.role }); setModal(true); }} className="p-1.5 hover:bg-indigo-50 rounded-lg text-indigo-600"><Pencil size={14} /></button>
-              <button title="Archive" onClick={() => archive(u._id)} className="p-1.5 hover:bg-orange-50 rounded-lg text-orange-500"><Archive size={14} /></button>
-              <button onClick={() => del(u._id)} className="p-1.5 hover:bg-red-50 rounded-lg text-red-500"><Trash2 size={14} /></button>
+              <button title="Archive" onClick={() => archive(u.id)} className="p-1.5 hover:bg-orange-50 rounded-lg text-orange-500"><Archive size={14} /></button>
+              <button onClick={() => del(u.id)} className="p-1.5 hover:bg-red-50 rounded-lg text-red-500"><Trash2 size={14} /></button>
             </div>
           </div>
         ))}
@@ -89,9 +93,9 @@ export default function EmployeesPage() {
           <input required type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} placeholder="Email" className="input" />
           {!editing && <input required type="password" value={form.password} onChange={e => setForm(p => ({ ...p, password: e.target.value }))} placeholder="Password (min 6)" className="input" minLength={6} />}
           <select value={form.role} onChange={e => setForm(p => ({ ...p, role: e.target.value }))} className="input">
-            <option value="admin">Admin</option>
-            <option value="employee">Employee</option>
-            <option value="cashier">Cashier</option>
+            <option value="ADMIN">Admin</option>
+            <option value="EMPLOYEE">Employee</option>
+            <option value="CASHIER">Cashier</option>
           </select>
           <div className="flex gap-2">
             <button type="button" onClick={() => setModal(false)} className="btn-secondary flex-1">Cancel</button>
