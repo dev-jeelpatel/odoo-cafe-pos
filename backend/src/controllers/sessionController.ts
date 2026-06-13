@@ -17,6 +17,32 @@ export const getCurrentSession = async (req: any, res: Response): Promise<void> 
   res.json(session);
 };
 
+export const getCurrentSessionSummary = async (req: any, res: Response): Promise<void> => {
+  const session = await prisma.session.findFirst({ where: { userId: req.user.id, status: 'OPEN' } });
+  if (!session) { res.json(null); return; }
+
+  const orders = await prisma.order.findMany({
+    where: { sessionId: session.id, isPaid: true },
+    include: { payments: true },
+  });
+
+  const totalSales = orders.reduce((s, o) => s + o.totalAmount, 0);
+  const totalOrders = orders.length;
+  const taxCollected = orders.reduce((s, o) => s + o.taxAmount, 0);
+  const discountsApplied = orders.reduce((s, o) => s + o.discountAmount, 0);
+  const allPayments = orders.flatMap(o => o.payments);
+  const cashAmount = allPayments.filter(p => p.paymentMethod === 'CASH').reduce((s, p) => s + p.amount, 0);
+  const upiAmount = allPayments.filter(p => p.paymentMethod === 'UPI').reduce((s, p) => s + p.amount, 0);
+  const cardAmount = allPayments.filter(p => p.paymentMethod === 'CARD').reduce((s, p) => s + p.amount, 0);
+
+  res.json({
+    totalSales, totalOrders, taxCollected, discountsApplied,
+    cashAmount, upiAmount, cardAmount,
+    cashInHand: session.openingAmount + cashAmount,
+    openingAmount: session.openingAmount,
+  });
+};
+
 export const openSession = async (req: any, res: Response): Promise<void> => {
   const existing = await prisma.session.findFirst({ where: { userId: req.user.id, status: 'OPEN' } });
   if (existing) { res.json(existing); return; }
