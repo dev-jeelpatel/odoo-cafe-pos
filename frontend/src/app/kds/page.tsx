@@ -41,19 +41,27 @@ function ElapsedTimer({ createdAt, stopped }: { createdAt: string; stopped: bool
 
 /* Single order card */
 function OrderCard({
-  order, stage, onMove, onToggleItem,
+  order, stage, onMove, onToggleItem, onDragStart, onDragEnd, isDragging,
 }: {
   order: Order;
   stage: KS;
   onMove: () => void;
   onToggleItem: (itemId: string, current: boolean) => void;
+  onDragStart: (order: Order) => void;
+  onDragEnd: () => void;
+  isDragging: boolean;
 }) {
   const isCompleted = stage === 'COMPLETED';
   const next = NEXT[stage];
 
   return (
-    <div className={clsx(
-      'rounded-xl overflow-hidden mb-3 border transition-all',
+    <div
+      draggable
+      onDragStart={() => onDragStart(order)}
+      onDragEnd={onDragEnd}
+      className={clsx(
+      'rounded-xl overflow-hidden mb-3 border transition-all cursor-grab active:cursor-grabbing',
+      isDragging && 'opacity-40 ring-2 ring-indigo-400',
       isCompleted
         ? 'border-green-700/40 bg-gray-800/60'
         : stage === 'PREPARING'
@@ -170,6 +178,8 @@ export default function KDSPage() {
   const [selectedType, setSelectedType] = useState('all');
   const [sortBy, setSortBy] = useState<'oldest' | 'newest'>('oldest');
   const [showAllCompleted, setShowAllCompleted] = useState(false);
+  const [draggedOrder, setDraggedOrder] = useState<Order | null>(null);
+  const [dragOverStage, setDragOverStage] = useState<KS | null>(null);
 
   const { data: orders = [] } = useQuery<Order[]>({
     queryKey: ['kds-orders'],
@@ -198,27 +208,28 @@ export default function KDSPage() {
     };
   }, [qc]);
 
-  /* Move order to next stage */
-  const moveStage = async (order: Order) => {
-    const next = NEXT[order.kitchenStatus];
-    if (!next) return;
+  /* Move order to a target stage (used by both the "next stage" button and drag-and-drop) */
+  const moveToStage = async (order: Order, target: KS) => {
+    if (target === order.kitchenStatus) return;
 
     // Optimistic update so UI moves immediately
     qc.setQueryData(['kds-orders'], (prev: Order[] | undefined) =>
       prev?.map(o => {
         if (o.id !== order.id) return o;
-        const updated = { ...o, kitchenStatus: next as KS };
-        if (next === 'COMPLETED') {
+        const updated = { ...o, kitchenStatus: target };
+        if (target === 'COMPLETED') {
           updated.items = o.items.map(i => ({ ...i, kitchenCompleted: true }));
+        } else if (order.kitchenStatus === 'COMPLETED') {
+          updated.items = o.items.map(i => ({ ...i, kitchenCompleted: false }));
         }
         return updated;
       }) ?? []
     );
 
     try {
-      await api.put(`/orders/${order.id}/kitchen-status`, { kitchenStatus: next });
+      await api.put(`/orders/${order.id}/kitchen-status`, { kitchenStatus: target });
 
-      if (next === 'COMPLETED') {
+      if (target === 'COMPLETED') {
         // Mark all items complete in the DB
         const unchecked = order.items.filter(i => !i.kitchenCompleted);
         await Promise.all(
@@ -230,7 +241,7 @@ export default function KDSPage() {
         await api.put(`/orders/${order.id}/status`, { status: 'READY' }).catch(() => {});
         toast.success(`${order.orderNumber} is ready!`, { icon: '✅' });
       } else {
-        toast.success(`${order.orderNumber} → ${next.replace('_', ' ')}`);
+        toast.success(`${order.orderNumber} → ${target.replace('_', ' ')}`);
       }
     } catch {
       toast.error('Failed to update order — retrying...');
@@ -238,6 +249,19 @@ export default function KDSPage() {
       // Always re-sync from server
       qc.invalidateQueries({ queryKey: ['kds-orders'] });
     }
+  };
+
+  /* Move order to next stage (button) */
+  const moveStage = (order: Order) => {
+    const next = NEXT[order.kitchenStatus];
+    if (next) moveToStage(order, next);
+  };
+
+  /* Drag-and-drop handlers */
+  const handleDrop = (target: KS) => {
+    setDragOverStage(null);
+    if (draggedOrder) moveToStage(draggedOrder, target);
+    setDraggedOrder(null);
   };
 
   /* Toggle single item */
@@ -385,13 +409,22 @@ export default function KDSPage() {
       {/* ── Three columns ── */}
       <div className="flex-1 grid grid-cols-3 gap-0 overflow-hidden">
         {/* TO COOK */}
-        <div className="flex flex-col border-r border-gray-800 overflow-hidden">
+        <div
+          className={clsx('flex flex-col border-r border-gray-800 overflow-hidden transition-colors',
+            dragOverStage === 'TO_COOK' && 'bg-red-500/5 ring-2 ring-inset ring-red-500/40')}
+          onDragOver={e => { e.preventDefault(); setDragOverStage('TO_COOK'); }}
+          onDragLeave={() => setDragOverStage(s => (s === 'TO_COOK' ? null : s))}
+          onDrop={e => { e.preventDefault(); handleDrop('TO_COOK'); }}
+        >
           <ColHeader label="To Cook" count={toCook.length} icon={Flame} color="bg-red-600/10 border-red-500/20" />
           <div className="flex-1 overflow-y-auto p-3">
             {toCook.map(o => (
               <OrderCard key={o.id} order={o} stage="TO_COOK"
                 onMove={() => moveStage(o)}
                 onToggleItem={(id, cur) => toggleItem(o, id, cur)}
+                onDragStart={setDraggedOrder}
+                onDragEnd={() => { setDraggedOrder(null); setDragOverStage(null); }}
+                isDragging={draggedOrder?.id === o.id}
               />
             ))}
             {toCook.length === 0 && (
@@ -404,13 +437,22 @@ export default function KDSPage() {
         </div>
 
         {/* PREPARING */}
-        <div className="flex flex-col border-r border-gray-800 overflow-hidden">
+        <div
+          className={clsx('flex flex-col border-r border-gray-800 overflow-hidden transition-colors',
+            dragOverStage === 'PREPARING' && 'bg-yellow-500/5 ring-2 ring-inset ring-yellow-500/40')}
+          onDragOver={e => { e.preventDefault(); setDragOverStage('PREPARING'); }}
+          onDragLeave={() => setDragOverStage(s => (s === 'PREPARING' ? null : s))}
+          onDrop={e => { e.preventDefault(); handleDrop('PREPARING'); }}
+        >
           <ColHeader label="Preparing" count={preparing.length} icon={ChefHat} color="bg-yellow-600/10 border-yellow-500/20" />
           <div className="flex-1 overflow-y-auto p-3">
             {preparing.map(o => (
               <OrderCard key={o.id} order={o} stage="PREPARING"
                 onMove={() => moveStage(o)}
                 onToggleItem={(id, cur) => toggleItem(o, id, cur)}
+                onDragStart={setDraggedOrder}
+                onDragEnd={() => { setDraggedOrder(null); setDragOverStage(null); }}
+                isDragging={draggedOrder?.id === o.id}
               />
             ))}
             {preparing.length === 0 && (
@@ -423,13 +465,22 @@ export default function KDSPage() {
         </div>
 
         {/* COMPLETED */}
-        <div className="flex flex-col overflow-hidden">
+        <div
+          className={clsx('flex flex-col overflow-hidden transition-colors',
+            dragOverStage === 'COMPLETED' && 'bg-green-500/5 ring-2 ring-inset ring-green-500/40')}
+          onDragOver={e => { e.preventDefault(); setDragOverStage('COMPLETED'); }}
+          onDragLeave={() => setDragOverStage(s => (s === 'COMPLETED' ? null : s))}
+          onDrop={e => { e.preventDefault(); handleDrop('COMPLETED'); }}
+        >
           <ColHeader label="Completed" count={completed.length} icon={CheckCircle2} color="bg-green-600/10 border-green-500/20" />
           <div className="flex-1 overflow-y-auto p-3">
             {completedShow.map(o => (
               <OrderCard key={o.id} order={o} stage="COMPLETED"
                 onMove={() => moveStage(o)}
                 onToggleItem={() => {}}
+                onDragStart={setDraggedOrder}
+                onDragEnd={() => { setDraggedOrder(null); setDragOverStage(null); }}
+                isDragging={draggedOrder?.id === o.id}
               />
             ))}
             {!showAllCompleted && completed.length > 6 && (
@@ -457,7 +508,7 @@ export default function KDSPage() {
           <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-yellow-500" />Preparing</span>
           <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-green-500" />Completed</span>
         </div>
-        <p className="text-xs text-gray-600">Tap items to check · Tap button to advance</p>
+        <p className="text-xs text-gray-600">Tap items to check · Tap button to advance · Drag tickets between columns</p>
         <button
           onClick={clearCompleted}
           className="flex items-center gap-1.5 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10 px-3 py-1.5 rounded-lg border border-red-500/20 transition-colors disabled:opacity-40"
