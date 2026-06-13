@@ -26,11 +26,19 @@ export default function SessionsPage() {
     queryFn: () => api.get('/sessions/current').then(r => r.data),
   });
 
+  const { data: liveSummary } = useQuery({
+    queryKey: ['current-session-summary'],
+    queryFn: () => api.get('/sessions/current/summary').then(r => r.data),
+    enabled: !!currentSession,
+    refetchInterval: 15000,
+  });
+
   const openSession = async () => {
     try {
       await api.post('/sessions/open');
       qc.invalidateQueries({ queryKey: ['sessions'] });
       qc.invalidateQueries({ queryKey: ['current-session'] });
+      qc.invalidateQueries({ queryKey: ['current-session-summary'] });
       await refreshSession();
       toast.success('Session opened!');
     } catch (err: any) { toast.error(err.response?.data?.message || 'Error'); }
@@ -80,16 +88,48 @@ export default function SessionsPage() {
         {currentSession && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4 pt-4 border-t">
             <div className="text-center">
-              <p className="text-xs text-gray-500">Live Orders</p>
-              <p className="text-2xl font-bold text-indigo-600">—</p>
+              <p className="text-xs text-gray-500">Orders Today</p>
+              <p className="text-2xl font-bold text-indigo-600">{liveSummary?.totalOrders ?? '—'}</p>
+            </div>
+            <div className="text-center">
+              <p className="text-xs text-gray-500">Total Sales</p>
+              <p className="text-2xl font-bold text-green-600">₹{(liveSummary?.totalSales ?? 0).toFixed(2)}</p>
             </div>
             <div className="text-center">
               <p className="text-xs text-gray-500">Opened At</p>
-              <p className="text-sm font-bold">{format(new Date(currentSession.openedAt), 'HH:mm')}</p>
+              <p className="text-sm font-bold mt-1">{format(new Date(currentSession.openedAt), 'HH:mm')}</p>
+            </div>
+            <div className="text-center">
+              <p className="text-xs text-gray-500">Cash In Hand</p>
+              <p className="text-2xl font-bold text-emerald-600">₹{(liveSummary?.cashInHand ?? 0).toFixed(2)}</p>
             </div>
           </div>
         )}
       </div>
+
+      {/* Cash in / cash out summary */}
+      {currentSession && (
+        <div className="card mb-6">
+          <h2 className="text-base font-bold text-gray-800 mb-3">Today's Sale — Cash In / Out</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            {[
+              { label: 'Opening Cash', value: liveSummary?.openingAmount ?? 0, color: 'text-gray-700 bg-gray-50' },
+              { label: 'Cash Sales', value: liveSummary?.cashAmount ?? 0, color: 'text-emerald-600 bg-emerald-50' },
+              { label: 'UPI Sales', value: liveSummary?.upiAmount ?? 0, color: 'text-indigo-600 bg-indigo-50' },
+              { label: 'Card Sales', value: liveSummary?.cardAmount ?? 0, color: 'text-purple-600 bg-purple-50' },
+            ].map(item => (
+              <div key={item.label} className={clsx('rounded-xl p-3', item.color.split(' ')[1])}>
+                <p className="text-xs text-gray-500">{item.label}</p>
+                <p className={clsx('text-lg font-bold', item.color.split(' ')[0])}>₹{item.value.toFixed(2)}</p>
+              </div>
+            ))}
+          </div>
+          <div className="mt-4 pt-4 border-t flex items-center justify-between">
+            <span className="text-sm font-medium text-gray-600">Expected Cash in Drawer</span>
+            <span className="text-xl font-bold text-emerald-700">₹{(liveSummary?.cashInHand ?? 0).toFixed(2)}</span>
+          </div>
+        </div>
+      )}
 
       {/* Session history */}
       <h2 className="text-base font-bold text-gray-800 mb-3">Session History</h2>
