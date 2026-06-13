@@ -9,6 +9,7 @@ import { Plus, Pencil, Trash2, LayoutList, LayoutGrid, Search, Tag, Package, Che
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import clsx from 'clsx';
+import { getProductEmoji } from '@/lib/productVisuals';
 
 const PRESET_COLORS = ['#6366f1','#ef4444','#f59e0b','#10b981','#3b82f6','#ec4899','#8b5cf6','#14b8a6','#f97316','#06b6d4','#84cc16','#64748b'];
 
@@ -136,7 +137,7 @@ export default function CategoriesPage() {
                   <tr key={c.id} className="hover:bg-gray-50 transition-colors group">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-lg flex items-center justify-center text-white font-bold text-sm shadow-sm transition-transform group-hover:scale-110" style={{ backgroundColor: c.color }}>{c.name[0].toUpperCase()}</div>
+                        <div className="w-9 h-9 rounded-lg flex items-center justify-center text-lg shadow-sm transition-transform group-hover:scale-110" style={{ backgroundColor: c.color + '1a' }}>{getProductEmoji(c.name, c.name)}</div>
                         <span className="font-medium text-gray-800 group-hover:text-indigo-700 transition-colors">{c.name}</span>
                       </div>
                     </td>
@@ -170,7 +171,7 @@ export default function CategoriesPage() {
             const count = productCount(c.id);
             return (
               <div key={c.id} className="card flex flex-col items-center gap-3 py-5 hover:shadow-lg hover:-translate-y-1 hover:border-indigo-200 transition-all group relative cursor-pointer" onClick={() => openEdit(c)}>
-                <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white text-xl font-bold shadow-md transition-transform group-hover:scale-110 group-hover:rotate-3" style={{ backgroundColor: c.color }}>{c.name[0].toUpperCase()}</div>
+                <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl shadow-md transition-transform group-hover:scale-110 group-hover:rotate-3" style={{ backgroundColor: c.color + '1a' }}>{getProductEmoji(c.name, c.name)}</div>
                 <p className="font-semibold text-gray-800 text-center text-sm group-hover:text-indigo-700 transition-colors">{c.name}</p>
                 <span className={clsx('text-xs font-medium px-2 py-0.5 rounded-full transition-colors', count > 0 ? 'bg-indigo-50 text-indigo-700 group-hover:bg-indigo-100' : 'bg-gray-100 text-gray-400')}>
                   {count} product{count !== 1 ? 's' : ''}
@@ -189,8 +190,8 @@ export default function CategoriesPage() {
         <form onSubmit={submit} className="space-y-5">
           {/* Live preview */}
           <div className="flex items-center gap-3 bg-gray-50 rounded-xl p-3 border border-gray-100">
-            <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-white text-lg font-bold shadow-md flex-shrink-0" style={{ backgroundColor: form.color }}>
-              {form.name.trim() ? form.name.trim()[0].toUpperCase() : '?'}
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shadow-md flex-shrink-0" style={{ backgroundColor: form.color + '1a' }}>
+              {getProductEmoji(form.name.trim(), form.name.trim())}
             </div>
             <div className="min-w-0">
               <p className="text-xs text-gray-400">Preview</p>
