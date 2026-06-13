@@ -33,7 +33,8 @@ export const changePassword = async (req: Request, res: Response): Promise<void>
 };
 
 export const archiveUser = async (req: Request, res: Response): Promise<void> => {
-  const user = await prisma.user.update({ where: { id: req.params.id }, data: { archived: true }, select: { id: true, name: true, email: true, role: true, archived: true } });
+  const existing = await prisma.user.findUnique({ where: { id: req.params.id }, select: { archived: true } });
+  const user = await prisma.user.update({ where: { id: req.params.id }, data: { archived: !existing?.archived }, select: { id: true, name: true, email: true, role: true, archived: true } });
   res.json(user);
 };
 
