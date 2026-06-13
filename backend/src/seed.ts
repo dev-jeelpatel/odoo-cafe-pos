@@ -14,22 +14,31 @@ async function main() {
     await prisma.paymentMethodConfig.upsert({ where: { method: m.method }, create: { ...m, enabled: true }, update: {} });
   }
 
-  // Admin user
-  const existing = await prisma.user.findUnique({ where: { email: 'admin@cafe.com' } });
-  if (!existing) {
-    await prisma.user.create({
-      data: { name: 'Admin', email: 'admin@cafe.com', password: await bcrypt.hash('admin123', 12), role: 'ADMIN' },
-    });
-    console.log('Created admin user: admin@cafe.com / admin123');
+  // Users
+  const users = [
+    { email: 'admin@cafe.com', name: 'Admin', password: 'admin123', role: 'ADMIN' as const },
+    { email: 'meera@cafe.com', name: 'Meera Pillai', password: 'cashier123', role: 'CASHIER' as const },
+    { email: 'vikas@cafe.com', name: 'Vikas Kumar', password: 'employee123', role: 'EMPLOYEE' as const },
+  ];
+  for (const u of users) {
+    const existing = await prisma.user.findUnique({ where: { email: u.email } });
+    if (!existing) {
+      await prisma.user.create({ data: { name: u.name, email: u.email, password: await bcrypt.hash(u.password, 12), role: u.role } });
+      console.log(`Created user: ${u.email} / ${u.password}`);
+    }
   }
 
-  // Categories
+  // Categories (veg-only cafe menu)
   const catData = [
     { name: 'Pizza', color: '#ef4444' },
-    { name: 'Burgers', color: '#f59e0b' },
-    { name: 'Drinks', color: '#3b82f6' },
+    { name: 'Burgers & Sandwiches', color: '#f59e0b' },
+    { name: 'South Indian', color: '#84cc16' },
+    { name: 'Snacks & Starters', color: '#10b981' },
+    { name: 'Salads & Bowls', color: '#22c55e' },
+    { name: 'Pasta & Noodles', color: '#f97316' },
+    { name: 'Hot Beverages', color: '#b45309' },
+    { name: 'Cold Beverages', color: '#3b82f6' },
     { name: 'Desserts', color: '#ec4899' },
-    { name: 'Starters', color: '#10b981' },
   ];
   const cats: Record<string, string> = {};
   for (const c of catData) {
@@ -37,31 +46,115 @@ async function main() {
     cats[c.name] = cat.id;
   }
 
-  // Products
+  // Products — all vegetarian
   const products = [
-    { name: 'Margherita Pizza', categoryId: cats['Pizza'], price: 280, tax: 5 },
-    { name: 'Pepperoni Pizza', categoryId: cats['Pizza'], price: 350, tax: 5 },
-    { name: 'Classic Burger', categoryId: cats['Burgers'], price: 180, tax: 5 },
-    { name: 'Cheese Burger', categoryId: cats['Burgers'], price: 220, tax: 5 },
-    { name: 'Cold Coffee', categoryId: cats['Drinks'], price: 120, tax: 12 },
-    { name: 'Fresh Lime Soda', categoryId: cats['Drinks'], price: 80, tax: 12 },
-    { name: 'Chocolate Brownie', categoryId: cats['Desserts'], price: 150, tax: 5 },
-    { name: 'Spring Rolls', categoryId: cats['Starters'], price: 160, tax: 5 },
+    // Pizza
+    { name: 'Margherita Pizza', category: 'Pizza', price: 249, tax: 5 },
+    { name: 'Farmhouse Pizza', category: 'Pizza', price: 299, tax: 5 },
+    { name: 'Paneer Tikka Pizza', category: 'Pizza', price: 329, tax: 5 },
+    { name: 'Corn & Cheese Pizza', category: 'Pizza', price: 279, tax: 5 },
+
+    // Burgers & Sandwiches
+    { name: 'Veg Burger', category: 'Burgers & Sandwiches', price: 129, tax: 5 },
+    { name: 'Paneer Burger', category: 'Burgers & Sandwiches', price: 159, tax: 5 },
+    { name: 'Aloo Tikki Burger', category: 'Burgers & Sandwiches', price: 109, tax: 5 },
+    { name: 'Grilled Veg Sandwich', category: 'Burgers & Sandwiches', price: 139, tax: 5 },
+    { name: 'Club Sandwich', category: 'Burgers & Sandwiches', price: 159, tax: 5 },
+
+    // South Indian
+    { name: 'Masala Dosa', category: 'South Indian', price: 99, tax: 5 },
+    { name: 'Idli Sambar', category: 'South Indian', price: 79, tax: 5 },
+    { name: 'Medu Vada', category: 'South Indian', price: 89, tax: 5 },
+    { name: 'Uttapam', category: 'South Indian', price: 109, tax: 5 },
+
+    // Snacks & Starters
+    { name: 'Veg Spring Rolls', category: 'Snacks & Starters', price: 159, tax: 5 },
+    { name: 'Paneer Tikka', category: 'Snacks & Starters', price: 219, tax: 5 },
+    { name: 'French Fries', category: 'Snacks & Starters', price: 99, tax: 5 },
+    { name: 'Peri Peri Fries', category: 'Snacks & Starters', price: 129, tax: 5 },
+    { name: 'Veg Manchurian', category: 'Snacks & Starters', price: 179, tax: 5 },
+    { name: 'Cheese Corn Nuggets', category: 'Snacks & Starters', price: 169, tax: 5 },
+
+    // Salads & Bowls
+    { name: 'Greek Salad', category: 'Salads & Bowls', price: 149, tax: 5 },
+    { name: 'Caesar Salad', category: 'Salads & Bowls', price: 169, tax: 5 },
+    { name: 'Sprouts Salad', category: 'Salads & Bowls', price: 119, tax: 5 },
+
+    // Pasta & Noodles
+    { name: 'Penne Alfredo', category: 'Pasta & Noodles', price: 219, tax: 5 },
+    { name: 'Arrabiata Pasta', category: 'Pasta & Noodles', price: 199, tax: 5 },
+    { name: 'Veg Hakka Noodles', category: 'Pasta & Noodles', price: 179, tax: 5 },
+    { name: 'Schezwan Noodles', category: 'Pasta & Noodles', price: 189, tax: 5 },
+
+    // Hot Beverages
+    { name: 'Masala Chai', category: 'Hot Beverages', price: 49, tax: 12 },
+    { name: 'Filter Coffee', category: 'Hot Beverages', price: 59, tax: 12 },
+    { name: 'Cappuccino', category: 'Hot Beverages', price: 129, tax: 12 },
+    { name: 'Hot Chocolate', category: 'Hot Beverages', price: 139, tax: 12 },
+    { name: 'Green Tea', category: 'Hot Beverages', price: 69, tax: 12 },
+
+    // Cold Beverages
+    { name: 'Cold Coffee', category: 'Cold Beverages', price: 139, tax: 12 },
+    { name: 'Oreo Shake', category: 'Cold Beverages', price: 169, tax: 12 },
+    { name: 'Mango Smoothie', category: 'Cold Beverages', price: 159, tax: 12 },
+    { name: 'Fresh Lime Soda', category: 'Cold Beverages', price: 69, tax: 12 },
+    { name: 'Iced Tea', category: 'Cold Beverages', price: 99, tax: 12 },
+    { name: 'Virgin Mojito', category: 'Cold Beverages', price: 129, tax: 12 },
+
+    // Desserts
+    { name: 'Chocolate Brownie', category: 'Desserts', price: 139, tax: 5 },
+    { name: 'Gulab Jamun', category: 'Desserts', price: 79, tax: 5 },
+    { name: 'Chocolate Lava Cake', category: 'Desserts', price: 169, tax: 5 },
+    { name: 'Tiramisu', category: 'Desserts', price: 199, tax: 5 },
+    { name: 'Gajar Halwa', category: 'Desserts', price: 119, tax: 5 },
   ];
   for (const p of products) {
-    await prisma.product.upsert({ where: { id: p.name }, create: { ...p, description: '' }, update: {} }).catch(() =>
-      prisma.product.create({ data: { ...p, description: '' } }).catch(() => {})
-    );
+    const id = `seed-prod-${p.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+    await prisma.product.upsert({
+      where: { id },
+      create: { id, name: p.name, categoryId: cats[p.category], price: p.price, tax: p.tax, description: '' },
+      update: { price: p.price, tax: p.tax, categoryId: cats[p.category] },
+    });
   }
+  console.log(`Seeded ${products.length} veg products across ${catData.length} categories`);
 
-  // Floor & Tables
-  const floor = await prisma.floor.upsert({ where: { name: 'Ground Floor' }, create: { name: 'Ground Floor' }, update: {} });
+  // Floors & Tables
+  const ground = await prisma.floor.upsert({ where: { name: 'Ground Floor' }, create: { name: 'Ground Floor' }, update: {} });
   for (let i = 1; i <= 8; i++) {
-    const existing = await prisma.table.findFirst({ where: { floorId: floor.id, tableNumber: String(i) } });
+    const existing = await prisma.table.findFirst({ where: { floorId: ground.id, tableNumber: `T${i}` } });
     if (!existing) {
-      await prisma.table.create({ data: { floorId: floor.id, tableNumber: String(i), seats: i <= 4 ? 2 : 4 } });
+      await prisma.table.create({ data: { floorId: ground.id, tableNumber: `T${i}`, seats: i <= 4 ? 2 : 4 } });
     }
   }
+
+  const rooftop = await prisma.floor.upsert({ where: { name: 'Rooftop' }, create: { name: 'Rooftop' }, update: {} });
+  for (let i = 1; i <= 4; i++) {
+    const existing = await prisma.table.findFirst({ where: { floorId: rooftop.id, tableNumber: `R${i}` } });
+    if (!existing) {
+      await prisma.table.create({ data: { floorId: rooftop.id, tableNumber: `R${i}`, seats: i <= 2 ? 4 : 6 } });
+    }
+  }
+
+  // Customers
+  const customers = [
+    { name: 'Rohan Verma', phone: '9812345670', email: 'rohan.verma@gmail.com' },
+    { name: 'Anjali Singh', phone: '9823456781', email: 'anjali.singh@gmail.com' },
+    { name: 'Karan Malhotra', phone: '9834567892', email: 'karan.m@gmail.com' },
+    { name: 'Pooja Iyer', phone: '9845678903', email: 'pooja.iyer@gmail.com' },
+    { name: 'Aditya Rao', phone: '9856789014', email: 'aditya.rao@gmail.com' },
+    { name: 'Neha Joshi', phone: '9867890125', email: 'neha.joshi@gmail.com' },
+    { name: 'Sahil Khanna', phone: '9878901236', email: 'sahil.k@gmail.com' },
+    { name: 'Divya Reddy', phone: '9889012347', email: 'divya.reddy@gmail.com' },
+  ];
+  for (const c of customers) {
+    const id = `seed-cust-${c.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+    await prisma.customer.upsert({ where: { id }, create: { id, ...c }, update: c });
+  }
+  console.log(`Seeded ${customers.length} customers`);
+
+  // Coupons
+  await prisma.coupon.upsert({ where: { code: 'WELCOME10' }, update: {}, create: { code: 'WELCOME10', discountType: 'PERCENTAGE', discountValue: 10, active: true } });
+  await prisma.coupon.upsert({ where: { code: 'FLAT50' }, update: {}, create: { code: 'FLAT50', discountType: 'FIXED', discountValue: 50, active: true } });
 
   console.log('Seeding complete!');
 }
