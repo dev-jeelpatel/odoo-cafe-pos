@@ -20,7 +20,7 @@ export default function CustomersPage() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      if (editing) await api.put(`/customers/${editing._id}`, form);
+      if (editing) await api.put(`/customers/${editing.id}`, form);
       else await api.post('/customers', form);
       qc.invalidateQueries({ queryKey: ['customers'] });
       setModal(false);
@@ -37,7 +37,7 @@ export default function CustomersPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {customers.map(c => (
-          <div key={c._id} className="card">
+          <div key={c.id} className="card">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center font-bold">{c.name[0].toUpperCase()}</div>
               <div className="flex-1 min-w-0">
@@ -48,7 +48,7 @@ export default function CustomersPage() {
             </div>
             <div className="flex gap-1 mt-3 justify-end">
               <button onClick={() => { setEditing(c); setForm({ name: c.name, email: c.email, phone: c.phone }); setModal(true); }} className="p-1.5 hover:bg-indigo-50 rounded-lg text-indigo-600"><Pencil size={14} /></button>
-              <button onClick={async () => { if (!confirm('Delete?')) return; await api.delete(`/customers/${c._id}`); qc.invalidateQueries({ queryKey: ['customers'] }); toast.success('Deleted'); }} className="p-1.5 hover:bg-red-50 rounded-lg text-red-500"><Trash2 size={14} /></button>
+              <button onClick={async () => { if (!confirm('Delete?')) return; await api.delete(`/customers/${c.id}`); qc.invalidateQueries({ queryKey: ['customers'] }); toast.success('Deleted'); }} className="p-1.5 hover:bg-red-50 rounded-lg text-red-500"><Trash2 size={14} /></button>
             </div>
           </div>
         ))}

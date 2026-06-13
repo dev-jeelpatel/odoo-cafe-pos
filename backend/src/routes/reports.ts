@@ -1,7 +1,8 @@
 import { Router } from 'express';
-import { getDashboard } from '../controllers/reportController';
-import { protect } from '../middleware/auth';
+import { getDashboard, getAuditLogs } from '../controllers/reportController';
+import { protect, adminOnly } from '../middleware/auth';
 
 const router = Router();
 router.get('/dashboard', protect, getDashboard);
+router.get('/audit-logs', protect, adminOnly, getAuditLogs);
 export default router;

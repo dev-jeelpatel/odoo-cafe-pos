@@ -93,7 +93,7 @@ export default function ReportsPage() {
                 {(data?.topOrders || []).slice(0, 8).map((o: any, i: number) => (
                   <div key={i} className="flex items-center justify-between py-1.5 border-b border-gray-50">
                     <span className="text-xs font-mono text-indigo-600">{o.orderNumber}</span>
-                    <span className="text-sm font-bold">₹{o.total.toFixed(2)}</span>
+                    <span className="text-sm font-bold">₹{(o.totalAmount ?? o.total ?? 0).toFixed(2)}</span>
                   </div>
                 ))}
                 {(!data?.topOrders?.length) && <p className="text-gray-400 text-sm text-center py-4">No data</p>}

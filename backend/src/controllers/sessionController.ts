@@ -1,40 +1,59 @@
 import { Request, Response } from 'express';
-import Session from '../models/Session';
-import Order from '../models/Order';
+import prisma from '../lib/prisma';
 
 export const getSessions = async (_req: Request, res: Response): Promise<void> => {
-  const sessions = await Session.find().populate('user', 'name email').sort('-openedAt');
+  const sessions = await prisma.session.findMany({
+    include: { user: { select: { id: true, name: true, email: true } } },
+    orderBy: { openedAt: 'desc' },
+  });
   res.json(sessions);
 };
 
 export const getCurrentSession = async (req: any, res: Response): Promise<void> => {
-  const session = await Session.findOne({ user: req.user._id, isOpen: true });
+  const session = await prisma.session.findFirst({
+    where: { userId: req.user.id, status: 'OPEN' },
+    include: { user: { select: { id: true, name: true } } },
+  });
   res.json(session);
 };
 
 export const openSession = async (req: any, res: Response): Promise<void> => {
-  const existing = await Session.findOne({ user: req.user._id, isOpen: true });
+  const existing = await prisma.session.findFirst({ where: { userId: req.user.id, status: 'OPEN' } });
   if (existing) { res.json(existing); return; }
-  const session = await Session.create({ user: req.user._id });
+  const session = await prisma.session.create({ data: { userId: req.user.id } });
+  await prisma.auditLog.create({ data: { userId: req.user.id, action: 'SESSION_OPEN', entityType: 'Session', entityId: session.id } });
   res.status(201).json(session);
 };
 
 export const closeSession = async (req: any, res: Response): Promise<void> => {
-  const session = await Session.findOne({ user: req.user._id, isOpen: true });
-  if (!session) { res.status(404).json({ message: 'No open session' }); return; }
+  try {
+    const session = await prisma.session.findFirst({ where: { userId: req.user.id, status: 'OPEN' } });
+    if (!session) { res.status(404).json({ message: 'No open session' }); return; }
 
-  const orders = await Order.find({ session: session._id, isPaid: true });
-  const totalSales = orders.reduce((s, o) => s + o.total, 0);
-  const totalOrders = orders.length;
-  const taxCollected = orders.reduce((s, o) => s + o.taxAmount, 0);
-  const discountsApplied = orders.reduce((s, o) => s + o.promotionDiscount + o.couponDiscount, 0);
-  const cashAmount = orders.flatMap(o => o.payments).filter(p => p.method === 'cash').reduce((s, p) => s + p.amount, 0);
-  const upiAmount = orders.flatMap(o => o.payments).filter(p => p.method === 'upi').reduce((s, p) => s + p.amount, 0);
-  const cardAmount = orders.flatMap(o => o.payments).filter(p => p.method === 'card').reduce((s, p) => s + p.amount, 0);
+    const orders = await prisma.order.findMany({
+      where: { sessionId: session.id, isPaid: true },
+      include: { payments: true },
+    });
 
-  session.isOpen = false;
-  session.closedAt = new Date();
-  session.summary = { totalSales, totalOrders, cashAmount, upiAmount, cardAmount, taxCollected, discountsApplied };
-  await session.save();
-  res.json(session);
+    const totalSales = orders.reduce((s, o) => s + o.totalAmount, 0);
+    const totalOrders = orders.length;
+    const taxCollected = orders.reduce((s, o) => s + o.taxAmount, 0);
+    const discountsApplied = orders.reduce((s, o) => s + o.discountAmount, 0);
+    const allPayments = orders.flatMap(o => o.payments);
+    const cashAmount = allPayments.filter(p => p.paymentMethod === 'CASH').reduce((s, p) => s + p.amount, 0);
+    const upiAmount = allPayments.filter(p => p.paymentMethod === 'UPI').reduce((s, p) => s + p.amount, 0);
+    const cardAmount = allPayments.filter(p => p.paymentMethod === 'CARD').reduce((s, p) => s + p.amount, 0);
+
+    const updated = await prisma.$transaction(async tx => {
+      const s = await tx.session.update({
+        where: { id: session.id },
+        data: { status: 'CLOSED', closedAt: new Date(), totalSales, totalOrders, cashAmount, upiAmount, cardAmount, taxCollected, discountsApplied },
+        include: { user: { select: { id: true, name: true } } },
+      });
+      await tx.auditLog.create({ data: { userId: req.user.id, action: 'SESSION_CLOSE', entityType: 'Session', entityId: session.id, details: { totalSales, totalOrders } } });
+      return s;
+    });
+
+    res.json(updated);
+  } catch (err: any) { res.status(500).json({ message: err.message }); }
 };

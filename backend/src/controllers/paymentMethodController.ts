@@ -1,21 +1,17 @@
 import { Request, Response } from 'express';
-import PaymentMethod from '../models/PaymentMethod';
+import prisma from '../lib/prisma';
 
 export const getPaymentMethods = async (_req: Request, res: Response): Promise<void> => {
-  const methods = await PaymentMethod.find();
+  const methods = await prisma.paymentMethodConfig.findMany({ orderBy: { method: 'asc' } });
   res.json(methods);
 };
 
 export const togglePaymentMethod = async (req: Request, res: Response): Promise<void> => {
   try {
-    const method = await PaymentMethod.findByIdAndUpdate(
-      req.params.id,
-      { isEnabled: req.body.isEnabled },
-      { new: true }
-    );
-    if (!method) { res.status(404).json({ message: 'Payment method not found' }); return; }
+    const method = await prisma.paymentMethodConfig.update({
+      where: { id: req.params.id },
+      data: { enabled: req.body.enabled !== undefined ? req.body.isEnabled ?? req.body.enabled : undefined },
+    });
     res.json(method);
-  } catch (err: any) {
-    res.status(400).json({ message: err.message });
-  }
+  } catch (err: any) { res.status(400).json({ message: err.message }); }
 };

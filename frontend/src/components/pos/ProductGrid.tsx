@@ -5,7 +5,6 @@ import { Product, Category } from '@/types';
 import api from '@/lib/api';
 import { useCart } from '@/contexts/CartContext';
 import { Search, Plus } from 'lucide-react';
-import clsx from 'clsx';
 
 export default function ProductGrid() {
   const [search, setSearch] = useState('');
@@ -16,9 +15,9 @@ export default function ProductGrid() {
   const { data: products = [] } = useQuery<Product[]>({ queryKey: ['products'], queryFn: () => api.get('/products').then(r => r.data) });
 
   const filtered = products.filter(p => {
-    const matchCat = activeCategory === 'all' || p.category?._id === activeCategory;
+    const matchCat = activeCategory === 'all' || p.categoryId === activeCategory;
     const matchSearch = p.name.toLowerCase().includes(search.toLowerCase());
-    return matchCat && matchSearch && p.isAvailable;
+    return matchCat && matchSearch && p.active;
   });
 
   return (
@@ -30,13 +29,14 @@ export default function ProductGrid() {
         </div>
       </div>
 
-      <div className="flex gap-2 overflow-x-auto pb-2 flex-shrink-0 mb-3 scrollbar-hide">
-        <button onClick={() => setActiveCategory('all')} className={clsx('px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap flex-shrink-0 transition-colors', activeCategory === 'all' ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200')}>
+      <div className="flex gap-2 overflow-x-auto pb-2 flex-shrink-0 mb-3">
+        <button onClick={() => setActiveCategory('all')} className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap flex-shrink-0 transition-colors ${activeCategory === 'all' ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
           All Items
         </button>
         {categories.map(cat => (
-          <button key={cat._id} onClick={() => setActiveCategory(cat._id)} className={clsx('px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap flex-shrink-0 transition-colors')}
-            style={activeCategory === cat._id ? { backgroundColor: cat.color, color: 'white' } : { border: `2px solid ${cat.color}`, color: cat.color }}
+          <button key={cat.id} onClick={() => setActiveCategory(cat.id)}
+            className="px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap flex-shrink-0 transition-colors"
+            style={activeCategory === cat.id ? { backgroundColor: cat.color, color: 'white' } : { border: `2px solid ${cat.color}`, color: cat.color }}
           >
             {cat.name}
           </button>
@@ -44,10 +44,10 @@ export default function ProductGrid() {
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2">
           {filtered.map(product => (
-            <button key={product._id} onClick={() => addItem(product)}
-              className="bg-white border border-gray-200 rounded-xl p-3 text-left hover:border-indigo-300 hover:shadow-md transition-all group relative"
+            <button key={product.id} onClick={() => addItem(product)}
+              className="bg-white border border-gray-200 rounded-xl p-3 text-left hover:border-indigo-300 hover:shadow-md transition-all group"
             >
               <div className="w-full h-1 rounded-full mb-2" style={{ backgroundColor: product.category?.color || '#6366f1' }} />
               <p className="text-sm font-semibold text-gray-800 leading-tight line-clamp-2">{product.name}</p>
@@ -60,9 +60,7 @@ export default function ProductGrid() {
               </div>
             </button>
           ))}
-          {filtered.length === 0 && (
-            <div className="col-span-4 text-center text-gray-400 py-12">No products found</div>
-          )}
+          {filtered.length === 0 && <div className="col-span-4 text-center text-gray-400 py-12">No products found</div>}
         </div>
       </div>
     </div>

@@ -12,18 +12,18 @@ export default function CouponsPage() {
   const qc = useQueryClient();
   const [modal, setModal] = useState(false);
   const [editing, setEditing] = useState<Coupon | null>(null);
-  const [form, setForm] = useState({ code: '', discountType: 'percentage', discountValue: '', isActive: true });
+  const [form, setForm] = useState({ code: '', discountType: 'PERCENTAGE', discountValue: '', active: true });
 
   const { data: coupons = [] } = useQuery<Coupon[]>({ queryKey: ['coupons'], queryFn: () => api.get('/coupons').then(r => r.data) });
 
-  const openCreate = () => { setEditing(null); setForm({ code: '', discountType: 'percentage', discountValue: '', isActive: true }); setModal(true); };
-  const openEdit = (c: Coupon) => { setEditing(c); setForm({ code: c.code, discountType: c.discountType, discountValue: String(c.discountValue), isActive: c.isActive }); setModal(true); };
+  const openCreate = () => { setEditing(null); setForm({ code: '', discountType: 'PERCENTAGE', discountValue: '', active: true }); setModal(true); };
+  const openEdit = (c: Coupon) => { setEditing(c); setForm({ code: c.code, discountType: c.discountType, discountValue: String(c.discountValue), active: c.active }); setModal(true); };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const payload = { ...form, discountValue: parseFloat(form.discountValue) };
+    const payload = { code: form.code, discountType: form.discountType, discountValue: parseFloat(form.discountValue), active: form.active };
     try {
-      if (editing) await api.put(`/coupons/${editing._id}`, payload);
+      if (editing) await api.put(`/coupons/${editing.id}`, payload);
       else await api.post('/coupons', payload);
       qc.invalidateQueries({ queryKey: ['coupons'] });
       setModal(false);
@@ -35,20 +35,20 @@ export default function CouponsPage() {
     <PageLayout title="Coupons" actions={<button onClick={openCreate} className="btn-primary flex items-center gap-2"><Plus size={16} />Add Coupon</button>}>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {coupons.map(c => (
-          <div key={c._id} className="card hover:shadow-md transition-shadow">
+          <div key={c.id} className="card hover:shadow-md transition-shadow">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
                 <div className="bg-indigo-100 text-indigo-600 p-2.5 rounded-xl"><TicketPercent size={20} /></div>
                 <div>
                   <p className="font-bold text-lg tracking-wider">{c.code}</p>
-                  <p className="text-sm text-gray-500">{c.discountType === 'percentage' ? `${c.discountValue}% off` : `₹${c.discountValue} off`}</p>
+                  <p className="text-sm text-gray-500">{c.discountType === 'PERCENTAGE' ? `${c.discountValue}% off` : `₹${c.discountValue} off`}</p>
                 </div>
               </div>
-              <span className={`badge ${c.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>{c.isActive ? 'Active' : 'Inactive'}</span>
+              <span className={`badge ${c.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>{c.active ? 'Active' : 'Inactive'}</span>
             </div>
             <div className="flex gap-2 mt-4 justify-end">
               <button onClick={() => openEdit(c)} className="p-1.5 hover:bg-indigo-50 rounded-lg text-indigo-600"><Pencil size={14} /></button>
-              <button onClick={async () => { await api.delete(`/coupons/${c._id}`); qc.invalidateQueries({ queryKey: ['coupons'] }); toast.success('Deleted'); }} className="p-1.5 hover:bg-red-50 rounded-lg text-red-500"><Trash2 size={14} /></button>
+              <button onClick={async () => { await api.delete(`/coupons/${c.id}`); qc.invalidateQueries({ queryKey: ['coupons'] }); toast.success('Deleted'); }} className="p-1.5 hover:bg-red-50 rounded-lg text-red-500"><Trash2 size={14} /></button>
             </div>
           </div>
         ))}
@@ -63,8 +63,8 @@ export default function CouponsPage() {
           <div>
             <label className="block text-sm font-medium mb-1">Discount Type</label>
             <select value={form.discountType} onChange={e => setForm(p => ({ ...p, discountType: e.target.value }))} className="input">
-              <option value="percentage">Percentage (%)</option>
-              <option value="fixed">Fixed Amount (₹)</option>
+              <option value="PERCENTAGE">Percentage (%)</option>
+              <option value="FIXED">Fixed Amount (₹)</option>
             </select>
           </div>
           <div>
@@ -72,7 +72,7 @@ export default function CouponsPage() {
             <input required type="number" min="0" value={form.discountValue} onChange={e => setForm(p => ({ ...p, discountValue: e.target.value }))} className="input" />
           </div>
           <label className="flex items-center gap-2 text-sm cursor-pointer">
-            <input type="checkbox" checked={form.isActive} onChange={e => setForm(p => ({ ...p, isActive: e.target.checked }))} className="w-4 h-4 accent-indigo-600" />
+            <input type="checkbox" checked={form.active} onChange={e => setForm(p => ({ ...p, active: e.target.checked }))} className="w-4 h-4 accent-indigo-600" />
             Active
           </label>
           <div className="flex gap-2">
