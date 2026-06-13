@@ -36,7 +36,7 @@ export default function ProductGrid() {
         </button>
         {categories.map(cat => (
           <button key={cat._id} onClick={() => setActiveCategory(cat._id)} className={clsx('px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap flex-shrink-0 transition-colors')}
-            style={{ backgroundColor: activeCategory === cat._id ? cat.color : undefined, color: activeCategory === cat._id ? 'white' : undefined, border: activeCategory !== cat._id ? `2px solid ${cat.color}` : undefined, color: activeCategory !== cat._id ? cat.color : 'white' as any }}
+            style={activeCategory === cat._id ? { backgroundColor: cat.color, color: 'white' } : { border: `2px solid ${cat.color}`, color: cat.color }}
           >
             {cat.name}
           </button>
