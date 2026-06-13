@@ -3,74 +3,184 @@ import prisma from '../lib/prisma';
 import nodemailer from 'nodemailer';
 
 const getTransporter = () => {
-  if (process.env.SMTP_HOST) {
+  if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
     return nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT) || 587,
+      host: 'smtp.gmail.com',
+      port: 587,
       secure: false,
-      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+      requireTLS: true,
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS.replace(/\s/g, ''),
+      },
     });
   }
-  // Ethereal test account fallback (logs to console)
   return null;
 };
 
-const buildReceiptHtml = (order: any) => `
-<!DOCTYPE html>
-<html>
-<head><meta charset="UTF-8"/><style>
-  body{font-family:Arial,sans-serif;background:#f9f9f9;color:#333;margin:0;padding:0}
-  .receipt{max-width:520px;margin:30px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.08)}
-  .header{background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;padding:28px 32px;text-align:center}
-  .header h1{margin:0;font-size:22px}
-  .header p{margin:4px 0 0;opacity:.85;font-size:13px}
-  .body{padding:28px 32px}
-  .info-row{display:flex;justify-content:space-between;margin-bottom:8px;font-size:14px}
-  .info-row span:first-child{color:#64748b}
-  .divider{border:none;border-top:1px dashed #e2e8f0;margin:18px 0}
-  .item{display:flex;justify-content:space-between;padding:8px 0;font-size:14px;border-bottom:1px solid #f1f5f9}
-  .item-name{flex:1}
-  .item-qty{color:#64748b;margin:0 16px}
-  .item-price{font-weight:600}
-  .totals{margin-top:16px}
-  .total-row{display:flex;justify-content:space-between;padding:5px 0;font-size:14px;color:#475569}
-  .total-row.grand{font-size:18px;font-weight:700;color:#1e293b;padding-top:12px;border-top:2px solid #6366f1;margin-top:8px}
-  .footer{background:#f8fafc;padding:18px 32px;text-align:center;font-size:12px;color:#94a3b8}
-  .paid-badge{display:inline-block;background:#dcfce7;color:#16a34a;padding:4px 14px;border-radius:999px;font-weight:700;font-size:12px;margin-top:6px}
-</style></head>
-<body>
-<div class="receipt">
-  <div class="header">
-    <h1>☕ Cafe POS</h1>
-    <p>Receipt — ${order.orderNumber}</p>
-  </div>
-  <div class="body">
-    <div class="info-row"><span>Date</span><span>${new Date(order.createdAt).toLocaleString()}</span></div>
-    <div class="info-row"><span>Order Type</span><span>${order.orderType.replace('_', ' ')}</span></div>
-    ${order.table ? `<div class="info-row"><span>Table</span><span>T${order.table.tableNumber}</span></div>` : ''}
-    ${order.customer ? `<div class="info-row"><span>Customer</span><span>${order.customer.name}</span></div>` : ''}
-    ${order.payments?.[0] ? `<div class="info-row"><span>Payment</span><span>${order.payments[0].paymentMethod}</span></div>` : ''}
-    <hr class="divider"/>
-    <div style="font-size:12px;font-weight:700;color:#64748b;margin-bottom:8px;text-transform:uppercase">Items</div>
-    ${order.items.map((item: any) => `
-      <div class="item">
-        <span class="item-name">${item.productName}</span>
-        <span class="item-qty">×${item.quantity}</span>
-        <span class="item-price">₹${item.totalPrice.toFixed(2)}</span>
-      </div>
-    `).join('')}
-    <div class="totals">
-      <div class="total-row"><span>Subtotal</span><span>₹${order.subtotal.toFixed(2)}</span></div>
-      <div class="total-row"><span>Tax</span><span>₹${order.taxAmount.toFixed(2)}</span></div>
-      ${order.discountAmount > 0 ? `<div class="total-row"><span>Discount</span><span>-₹${order.discountAmount.toFixed(2)}</span></div>` : ''}
-      <div class="total-row grand"><span>Total</span><span>₹${order.totalAmount.toFixed(2)}</span></div>
-    </div>
-    <div style="text-align:center;margin-top:16px"><span class="paid-badge">✓ PAID</span></div>
-  </div>
-  <div class="footer">Thank you for dining with us! · Cafe POS</div>
-</div>
+const buildPlainText = (order: any): string => {
+  const paymentMethod = order.payments?.[0]?.paymentMethod || '';
+  const lines = [
+    `CAFE POS — ORDER RECEIPT`,
+    `Order: ${order.orderNumber}`,
+    `Date: ${new Date(order.createdAt).toLocaleString('en-IN')}`,
+    `Type: ${order.orderType.replace('_', ' ')}`,
+    order.table ? `Table: ${order.table.tableNumber}` : '',
+    order.customer ? `Customer: ${order.customer.name}` : '',
+    paymentMethod ? `Payment: ${paymentMethod}` : '',
+    ``,
+    `ITEMS`,
+    ...order.items.map((i: any) => `${i.productName} x${i.quantity}  Rs. ${i.totalPrice.toFixed(2)}`),
+    ``,
+    `Subtotal: Rs. ${order.subtotal.toFixed(2)}`,
+    `Tax:      Rs. ${order.taxAmount.toFixed(2)}`,
+    order.discountAmount > 0 ? `Discount: -Rs. ${order.discountAmount.toFixed(2)}` : '',
+    `Total:    Rs. ${order.totalAmount.toFixed(2)}`,
+    ``,
+    `Thank you for dining with us.`,
+    `Cafe POS`,
+  ].filter(Boolean);
+  return lines.join('\n');
+};
+
+const buildReceiptHtml = (order: any): string => {
+  const paymentMethod = order.payments?.[0]?.paymentMethod
+    ? order.payments[0].paymentMethod.charAt(0) + order.payments[0].paymentMethod.slice(1).toLowerCase()
+    : null;
+
+  const orderTypeLabel = order.orderType
+    .replace('_', ' ')
+    .split(' ')
+    .map((w: string) => w.charAt(0) + w.slice(1).toLowerCase())
+    .join(' ');
+
+  const infoRow = (label: string, value: string, green = false) => `
+    <tr>
+      <td style="font-family:Georgia,'Times New Roman',serif;font-size:14px;color:#666666;padding:6px 0;width:45%;">${label}</td>
+      <td style="font-family:Georgia,'Times New Roman',serif;font-size:14px;font-weight:bold;color:${green ? '#15803d' : '#111111'};padding:6px 0;text-align:right;">${value}</td>
+    </tr>`;
+
+  const itemRows = order.items.map((item: any) => `
+    <tr>
+      <td style="font-family:Georgia,'Times New Roman',serif;font-size:14px;color:#1a1a1a;font-weight:500;padding:10px 0;border-bottom:1px solid #f0f0f0;">${item.productName}</td>
+      <td style="font-family:Georgia,'Times New Roman',serif;font-size:13px;color:#888888;padding:10px 8px;text-align:center;border-bottom:1px solid #f0f0f0;white-space:nowrap;">x&nbsp;${item.quantity}</td>
+      <td style="font-family:Georgia,'Times New Roman',serif;font-size:14px;font-weight:bold;color:#111111;padding:10px 0;text-align:right;border-bottom:1px solid #f0f0f0;white-space:nowrap;">Rs.&nbsp;${item.totalPrice.toFixed(2)}</td>
+    </tr>`).join('');
+
+  const totalRow = (label: string, value: string, color = '#555555', size = '14px', topBorder = false) => `
+    <tr>
+      <td colspan="2" style="font-family:Georgia,'Times New Roman',serif;font-size:${size};color:${color};padding:${topBorder ? '14px 0 5px' : '5px 0'};${topBorder ? 'border-top:2px solid #111111;' : ''}">${label}</td>
+      <td style="font-family:Georgia,'Times New Roman',serif;font-size:${size};color:${color};font-weight:${topBorder ? 'bold' : 'normal'};padding:${topBorder ? '14px 0 5px' : '5px 0'};text-align:right;${topBorder ? 'border-top:2px solid #111111;' : ''}">Rs.&nbsp;${value}</td>
+    </tr>`;
+
+  return `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="x-apple-disable-message-reformatting"/>
+<title>Receipt ${order.orderNumber}</title>
+<style type="text/css">
+  body, table, td { margin:0; padding:0; }
+  @media only screen and (max-width:600px) {
+    .outer { width:100% !important; }
+    .header-pad { padding:24px 20px !important; }
+    .section-pad { padding:20px 20px !important; }
+    .footer-pad { padding:20px !important; }
+  }
+</style>
+</head>
+<body style="margin:0;padding:0;background-color:#f0f0f0;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
+
+<table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#f0f0f0;">
+  <tr>
+    <td align="center" style="padding:32px 16px;">
+      <table border="0" cellpadding="0" cellspacing="0" width="560" class="outer" style="background-color:#ffffff;border:1px solid #d4d4d4;border-radius:4px;overflow:hidden;max-width:560px;">
+
+        <!-- Header -->
+        <tr>
+          <td class="header-pad" style="background-color:#111111;padding:28px 36px;">
+            <p style="font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:bold;letter-spacing:3px;text-transform:uppercase;color:#888888;margin:0 0 10px;">CAFE POS</p>
+            <p style="font-family:Georgia,'Times New Roman',serif;font-size:26px;font-weight:bold;color:#ffffff;margin:0 0 6px;">Order Receipt</p>
+            <p style="font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#aaaaaa;margin:0;letter-spacing:0.5px;">${order.orderNumber}</p>
+          </td>
+        </tr>
+
+        <!-- Payment confirmed -->
+        <tr>
+          <td style="background-color:#ffffff;padding:14px 36px;border-bottom:1px solid #e8e8e8;">
+            <table border="0" cellpadding="0" cellspacing="0">
+              <tr>
+                <td style="background-color:#dcfce7;border:1px solid #bbf7d0;border-radius:2px;padding:6px 14px;">
+                  <table border="0" cellpadding="0" cellspacing="0">
+                    <tr>
+                      <td style="width:8px;"><div style="width:7px;height:7px;background-color:#16a34a;border-radius:50%;display:block;"></div></td>
+                      <td style="padding-left:7px;font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;color:#15803d;">Payment Confirmed</td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- Order Details -->
+        <tr>
+          <td class="section-pad" style="padding:22px 36px;border-bottom:1px solid #e8e8e8;">
+            <p style="font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;letter-spacing:2px;text-transform:uppercase;color:#888888;margin:0 0 14px;">Order Details</p>
+            <table border="0" cellpadding="0" cellspacing="0" width="100%">
+              ${infoRow('Date &amp; Time', new Date(order.createdAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }))}
+              ${infoRow('Order Type', orderTypeLabel)}
+              ${order.table ? infoRow('Table', `Table ${order.table.tableNumber}`) : ''}
+              ${order.customer ? infoRow('Customer', order.customer.name) : ''}
+              ${paymentMethod ? infoRow('Payment Method', paymentMethod, true) : ''}
+            </table>
+          </td>
+        </tr>
+
+        <!-- Items -->
+        <tr>
+          <td class="section-pad" style="padding:22px 36px;border-bottom:1px solid #e8e8e8;">
+            <p style="font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;letter-spacing:2px;text-transform:uppercase;color:#888888;margin:0 0 14px;">Items Ordered</p>
+            <table border="0" cellpadding="0" cellspacing="0" width="100%">
+              <tr>
+                <th style="font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;color:#888888;padding-bottom:10px;border-bottom:1px solid #d4d4d4;text-align:left;">Item</th>
+                <th style="font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;color:#888888;padding-bottom:10px;border-bottom:1px solid #d4d4d4;text-align:center;width:40px;">Qty</th>
+                <th style="font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;color:#888888;padding-bottom:10px;border-bottom:1px solid #d4d4d4;text-align:right;white-space:nowrap;">Amount</th>
+              </tr>
+              ${itemRows}
+            </table>
+          </td>
+        </tr>
+
+        <!-- Totals -->
+        <tr>
+          <td class="section-pad" style="padding:18px 36px;border-bottom:1px solid #e8e8e8;background-color:#fafafa;">
+            <table border="0" cellpadding="0" cellspacing="0" width="100%">
+              ${totalRow('Subtotal', order.subtotal.toFixed(2))}
+              ${totalRow('Tax', order.taxAmount.toFixed(2))}
+              ${order.discountAmount > 0 ? totalRow('Discount Applied', order.discountAmount.toFixed(2), '#15803d') : ''}
+              ${totalRow('Total Paid', order.totalAmount.toFixed(2), '#111111', '17px', true)}
+            </table>
+          </td>
+        </tr>
+
+        <!-- Footer -->
+        <tr>
+          <td class="footer-pad" style="padding:22px 36px;background-color:#fafafa;text-align:center;">
+            <p style="font-family:Georgia,'Times New Roman',serif;font-size:13px;color:#555555;margin:0 0 4px;">Thank you for dining with us.</p>
+            <p style="font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#aaaaaa;margin:0;letter-spacing:0.5px;">Cafe POS &nbsp;&middot;&nbsp; Keep this receipt for your records</p>
+          </td>
+        </tr>
+
+      </table>
+    </td>
+  </tr>
+</table>
+
 </body>
 </html>`;
+};
 
 export const getCompletedOrders = async (_req: Request, res: Response): Promise<void> => {
   const orders = await prisma.order.findMany({
@@ -95,19 +205,21 @@ export const sendReceiptEmail = async (req: Request, res: Response): Promise<voi
     if (!order) { res.status(404).json({ message: 'Order not found' }); return; }
 
     const html = buildReceiptHtml(order);
+    const text = buildPlainText(order);
     const transporter = getTransporter();
 
     if (!transporter) {
       console.log(`[RECEIPT EMAIL] Would send receipt for ${order.orderNumber} to ${email}`);
-      console.log(html);
-      res.json({ success: true, message: `Receipt logged (SMTP not configured). Configure SMTP_HOST in .env to send real emails.` });
+      res.json({ success: true, message: `Receipt logged (EMAIL_USER/EMAIL_PASS not configured in .env).` });
       return;
     }
 
     const mailOptions: any = {
-      from: process.env.SMTP_FROM || 'Cafe POS <noreply@cafe.com>',
+      from: `Cafe POS <${process.env.EMAIL_USER}>`,
+      replyTo: process.env.EMAIL_USER,
       to: email,
-      subject: `Your Receipt — ${order.orderNumber}`,
+      subject: `Your order receipt (${order.orderNumber}) - Cafe POS`,
+      text,
       html,
     };
 
@@ -123,6 +235,12 @@ export const sendReceiptEmail = async (req: Request, res: Response): Promise<voi
     await transporter.sendMail(mailOptions);
     res.json({ success: true, message: `Receipt sent to ${email}` });
   } catch (err: any) {
-    res.status(500).json({ message: err.message });
+    console.error('[RECEIPT EMAIL ERROR]', err.message, err.code || '');
+    const userMessage = err.code === 'EAUTH'
+      ? 'Gmail authentication failed — check EMAIL_USER and EMAIL_PASS in .env'
+      : err.code === 'ECONNECTION' || err.code === 'ETIMEDOUT'
+      ? 'Could not connect to Gmail SMTP — check your internet connection'
+      : err.message;
+    res.status(500).json({ message: userMessage });
   }
 };

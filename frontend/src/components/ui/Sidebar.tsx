@@ -6,17 +6,17 @@ import { useSidebar } from '@/contexts/SidebarContext';
 import {
   Coffee, ShoppingCart, Users, LayoutGrid, Tag, Percent, CreditCard,
   BarChart3, LogOut, ChefHat, Layers, TicketPercent, Building2, X,
-  Clock, Shield, ReceiptText, PanelLeftClose, PanelLeftOpen,
+  Clock, Shield, ReceiptText, PanelLeftClose, PanelLeftOpen, Smartphone,
 } from 'lucide-react';
 import clsx from 'clsx';
 
-const groups: { label: string; links: { href: string; label: string; icon: any; roles: string[] }[] }[] = [
+const groups: { label: string; links: { href: string; label: string; icon: any; roles: string[]; newTab?: boolean }[] }[] = [
   {
     label: 'Operations',
     links: [
       { href: '/pos', label: 'POS Terminal', icon: ShoppingCart, roles: ['ADMIN', 'EMPLOYEE', 'CASHIER'] },
       { href: '/orders', label: 'Orders', icon: LayoutGrid, roles: ['ADMIN', 'EMPLOYEE', 'CASHIER'] },
-      { href: '/kds', label: 'Kitchen Display', icon: ChefHat, roles: ['ADMIN', 'EMPLOYEE', 'CASHIER'] },
+      { href: '/kds', label: 'Kitchen Display', icon: ChefHat, roles: ['ADMIN', 'EMPLOYEE', 'CASHIER'], newTab: true },
       { href: '/customers', label: 'Customers', icon: Users, roles: ['ADMIN', 'EMPLOYEE', 'CASHIER'] },
       { href: '/sessions', label: 'Sessions', icon: Clock, roles: ['ADMIN', 'EMPLOYEE', 'CASHIER'] },
     ],
@@ -80,37 +80,58 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                   <p className="px-3 mb-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-500">{group.label}</p>
                 )}
                 <div className="space-y-0.5">
-                  {visible.map(({ href, label, icon: Icon }) => {
+                  {visible.map(({ href, label, icon: Icon, newTab }) => {
                     const active = isActive(href);
-                    return (
-                      <Link
-                        key={href}
-                        href={href}
-                        onClick={onClose}
-                        title={collapsed ? label : undefined}
-                        className={clsx(
-                          'group relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150',
-                          collapsed && 'justify-center px-0',
-                          active
-                            ? 'bg-gradient-to-r from-indigo-600 to-indigo-500 text-white shadow-md shadow-indigo-900/30'
-                            : 'text-gray-400 hover:bg-gray-800/70 hover:text-white'
-                        )}
-                      >
-                        {active && !collapsed && <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-1 rounded-r-full bg-white/80" />}
-                        <Icon size={18} className={clsx('flex-shrink-0 transition-transform', !active && 'group-hover:scale-110', active && 'drop-shadow-sm')} />
-                        {!collapsed && <span className="truncate">{label}</span>}
-                        {collapsed && (
-                          <span className="pointer-events-none absolute left-full ml-2 whitespace-nowrap rounded-md bg-gray-800 px-2 py-1 text-xs font-medium text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 z-50">
-                            {label}
-                          </span>
-                        )}
-                      </Link>
+                    const cls = clsx(
+                      'group relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150',
+                      collapsed && 'justify-center px-0',
+                      active
+                        ? 'bg-gradient-to-r from-indigo-600 to-indigo-500 text-white shadow-md shadow-indigo-900/30'
+                        : 'text-gray-400 hover:bg-gray-800/70 hover:text-white'
+                    );
+                    const inner = <>
+                      {active && !collapsed && <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-1 rounded-r-full bg-white/80" />}
+                      <Icon size={18} className={clsx('flex-shrink-0 transition-transform', !active && 'group-hover:scale-110', active && 'drop-shadow-sm')} />
+                      {!collapsed && <span className="truncate">{label}</span>}
+                      {collapsed && (
+                        <span className="pointer-events-none absolute left-full ml-2 whitespace-nowrap rounded-md bg-gray-800 px-2 py-1 text-xs font-medium text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 z-50">
+                          {label}
+                        </span>
+                      )}
+                    </>;
+                    return newTab ? (
+                      <a key={href} href={href} target="_blank" rel="noopener noreferrer" onClick={onClose} title={collapsed ? label : undefined} className={cls}>{inner}</a>
+                    ) : (
+                      <Link key={href} href={href} onClick={onClose} title={collapsed ? label : undefined} className={cls}>{inner}</Link>
                     );
                   })}
                 </div>
               </div>
             );
           })}
+
+          {/* Customer Menu — external */}
+          <div className="mb-4">
+            {!collapsed && <p className="px-3 mb-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-500">Customer</p>}
+            <a
+              href="/menu"
+              target="_blank"
+              rel="noopener noreferrer"
+              title={collapsed ? 'Customer Menu' : undefined}
+              className={clsx(
+                'group relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 text-gray-400 hover:bg-gray-800/70 hover:text-white',
+                collapsed && 'justify-center px-0'
+              )}
+            >
+              <Smartphone size={18} className="flex-shrink-0 transition-transform group-hover:scale-110" />
+              {!collapsed && <span className="truncate">Customer Menu</span>}
+              {collapsed && (
+                <span className="pointer-events-none absolute left-full ml-2 whitespace-nowrap rounded-md bg-gray-800 px-2 py-1 text-xs font-medium text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 z-50">
+                  Customer Menu
+                </span>
+              )}
+            </a>
+          </div>
         </nav>
 
         {/* Collapse toggle */}

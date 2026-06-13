@@ -6,17 +6,20 @@ import CartPanel from '@/components/pos/CartPanel';
 import { Menu } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
+import { useSidebar } from '@/contexts/SidebarContext';
+import clsx from 'clsx';
 
 export default function POSPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user } = useAuth();
   const { selectedTable } = useCart();
+  const { collapsed } = useSidebar();
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-100">
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      <div className="flex-1 flex flex-col min-w-0 lg:ml-64">
+      <div className={clsx('flex-1 flex flex-col min-w-0 transition-all duration-300', collapsed ? 'lg:ml-20' : 'lg:ml-64')}>
         {/* Top bar */}
         <header className="bg-white border-b border-gray-200 px-4 py-2.5 flex items-center gap-3 shrink-0">
           <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-1.5 hover:bg-gray-100 rounded-lg">
