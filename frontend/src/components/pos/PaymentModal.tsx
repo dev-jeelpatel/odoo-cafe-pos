@@ -6,15 +6,16 @@ import { useCart } from '@/contexts/CartContext';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import { QRCodeSVG } from 'qrcode.react';
-import { CreditCard, Banknote, QrCode, Plus, Trash2, AlertCircle } from 'lucide-react';
+import { CreditCard, Banknote, QrCode, Plus, Trash2, AlertCircle, FlaskConical } from 'lucide-react';
 
 interface Props { isOpen: boolean; onClose: () => void; onSuccess: () => void; }
-interface PayEntry { method: 'CASH' | 'UPI' | 'CARD'; amount: number; transactionId?: string; reference?: string; }
+interface PayEntry { method: 'CASH' | 'UPI' | 'CARD' | 'TEST'; amount: number; transactionId?: string; reference?: string; }
 
 const icons: Record<string, React.ReactNode> = {
   CASH: <Banknote size={18} />,
   UPI: <QrCode size={18} />,
   CARD: <CreditCard size={18} />,
+  TEST: <FlaskConical size={18} />,
 };
 
 export default function PaymentModal({ isOpen, onClose, onSuccess }: Props) {
@@ -22,7 +23,7 @@ export default function PaymentModal({ isOpen, onClose, onSuccess }: Props) {
   const [payments, setPayments] = useState<PayEntry[]>([]);
   const [processing, setProcessing] = useState(false);
   const [cashReceived, setCashReceived] = useState('');
-  const [activeMethod, setActiveMethod] = useState<'CASH' | 'UPI' | 'CARD'>('CASH');
+  const [activeMethod, setActiveMethod] = useState<'CASH' | 'UPI' | 'CARD' | 'TEST'>('CASH');
   const [upiRef, setUpiRef] = useState('');
   const [cardTxId, setCardTxId] = useState('');
 
@@ -39,7 +40,8 @@ export default function PaymentModal({ isOpen, onClose, onSuccess }: Props) {
   const addPayment = () => {
     const amount = activeMethod === 'CASH' ? parseFloat(cashReceived) || remaining : remaining;
     if (amount <= 0) return;
-    setPayments(prev => [...prev, { method: activeMethod, amount, transactionId: cardTxId || undefined, reference: upiRef || undefined }]);
+    const reference = activeMethod === 'TEST' ? 'SIMULATED-NO-REAL-CHARGE' : (upiRef || undefined);
+    setPayments(prev => [...prev, { method: activeMethod, amount, transactionId: cardTxId || undefined, reference }]);
     setCashReceived(''); setUpiRef(''); setCardTxId('');
   };
 
@@ -126,6 +128,12 @@ export default function PaymentModal({ isOpen, onClose, onSuccess }: Props) {
           })()}
           {activeMethod === 'CARD' && (
             <input value={cardTxId} onChange={e => setCardTxId(e.target.value)} placeholder="Transaction ID" className="input" />
+          )}
+          {activeMethod === 'TEST' && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-800">
+              <p className="font-medium">Simulated payment — no real money is charged.</p>
+              <p className="text-xs text-amber-700 mt-0.5">Use this to test the order &amp; receipt flow end-to-end.</p>
+            </div>
           )}
 
           <button onClick={addPayment} disabled={remaining <= 0} className="w-full btn-secondary flex items-center justify-center gap-2">
