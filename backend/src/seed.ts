@@ -1,18 +1,20 @@
 import 'dotenv/config';
 import bcrypt from 'bcryptjs';
 import prisma from './lib/prisma';
+import { PaymentMethod } from '@prisma/client';
 
 async function main() {
   console.log('Seeding database...');
 
   // Payment methods
-  for (const m of [
-    { method: 'CASH' as const, label: 'Cash' },
-    { method: 'UPI' as const, label: 'UPI QR' },
-    { method: 'CARD' as const, label: 'Card / Digital' },
-    { method: 'TEST' as const, label: 'Test Payment (Demo)' },
-  ]) {
-    await prisma.paymentMethodConfig.upsert({ where: { method: m.method }, create: { ...m, enabled: true }, update: {} });
+  const paymentMethods: { method: PaymentMethod; label: string }[] = [
+    { method: PaymentMethod.CASH, label: 'Cash' },
+    { method: PaymentMethod.UPI, label: 'UPI QR' },
+    { method: PaymentMethod.CARD, label: 'Card / Digital' },
+    { method: PaymentMethod.TEST, label: 'Test Payment (Demo)' },
+  ];
+  for (const m of paymentMethods) {
+    await prisma.paymentMethodConfig.upsert({ where: { method: m.method }, create: { method: m.method, label: m.label, enabled: true }, update: {} });
   }
 
   // Users
