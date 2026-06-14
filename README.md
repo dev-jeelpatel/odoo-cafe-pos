@@ -24,6 +24,20 @@ A full-stack Restaurant POS system built with Next.js, Node.js, PostgreSQL (Pris
 - Receipts (with email delivery) and audit logs
 - Reporting & analytics dashboard (today / week / month)
 
+## Screenshots
+
+| POS Terminal | Orders |
+|---|---|
+| ![POS Terminal](docs/screenshots/pos-terminal.png) | ![Orders](docs/screenshots/orders.png) |
+
+| Kitchen Display | Session Management |
+|---|---|
+| ![Kitchen Display](docs/screenshots/kitchen-display.png) | ![Session Management](docs/screenshots/sessions.png) |
+
+| Products |
+|---|
+| ![Products](docs/screenshots/products.png) |
+
 ## Prerequisites
 
 - Node.js 18+
