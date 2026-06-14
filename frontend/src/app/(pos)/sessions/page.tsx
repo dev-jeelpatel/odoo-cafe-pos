@@ -5,7 +5,7 @@ import api from '@/lib/api';
 import PageLayout from '@/components/ui/PageLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { format } from 'date-fns';
-import { Power, PowerOff, Clock, DollarSign, ShoppingBag } from 'lucide-react';
+import { Power, PowerOff, Clock, DollarSign, ShoppingBag, Banknote } from 'lucide-react';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import Modal from '@/components/ui/Modal';
@@ -15,6 +15,8 @@ export default function SessionsPage() {
   const { user, refreshSession } = useAuth();
   const qc = useQueryClient();
   const [summaryModal, setSummaryModal] = useState<Session | null>(null);
+  const [openingModal, setOpeningModal] = useState(false);
+  const [openingCash, setOpeningCash] = useState('');
 
   const { data: sessions = [] } = useQuery<Session[]>({
     queryKey: ['sessions'],
@@ -33,13 +35,15 @@ export default function SessionsPage() {
     refetchInterval: 15000,
   });
 
-  const openSession = async () => {
+  const confirmOpenSession = async () => {
     try {
-      await api.post('/sessions/open');
+      await api.post('/sessions/open', { openingAmount: parseFloat(openingCash) || 0 });
       qc.invalidateQueries({ queryKey: ['sessions'] });
       qc.invalidateQueries({ queryKey: ['current-session'] });
       qc.invalidateQueries({ queryKey: ['current-session-summary'] });
       await refreshSession();
+      setOpeningModal(false);
+      setOpeningCash('');
       toast.success('Session opened!');
     } catch (err: any) { toast.error(err.response?.data?.message || 'Error'); }
   };
@@ -78,7 +82,7 @@ export default function SessionsPage() {
                 <PowerOff size={16} /> Close Session
               </button>
             ) : (
-              <button onClick={openSession} className="btn-primary flex items-center gap-2">
+              <button onClick={() => { setOpeningCash(''); setOpeningModal(true); }} className="btn-primary flex items-center gap-2">
                 <Power size={16} /> Open Session
               </button>
             )}
@@ -157,6 +161,49 @@ export default function SessionsPage() {
           <p className="text-center text-gray-400 py-8">No closed sessions yet</p>
         )}
       </div>
+
+      {/* Opening cash modal */}
+      <Modal isOpen={openingModal} onClose={() => setOpeningModal(false)} title="Open New Session" size="sm">
+        <div className="space-y-4">
+          <div className="flex items-center gap-3 bg-indigo-50 rounded-xl p-4">
+            <div className="bg-indigo-100 text-indigo-600 p-2.5 rounded-xl"><Banknote size={22} /></div>
+            <div>
+              <p className="text-sm font-semibold text-indigo-800">Opening Cash in Drawer (Galla)</p>
+              <p className="text-xs text-indigo-500 mt-0.5">Enter the cash currently in the drawer before starting the session.</p>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Opening Amount (₹)</label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-medium">₹</span>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="0.00"
+                value={openingCash}
+                onChange={e => setOpeningCash(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && confirmOpenSession()}
+                className="input pl-7"
+                autoFocus
+              />
+            </div>
+            {openingCash && !isNaN(parseFloat(openingCash)) && (
+              <p className="text-xs text-gray-400 mt-1">
+                Opening with <span className="font-semibold text-gray-700">₹{parseFloat(openingCash).toFixed(2)}</span> in drawer
+              </p>
+            )}
+          </div>
+
+          <div className="flex gap-2 pt-1">
+            <button onClick={() => setOpeningModal(false)} className="btn-secondary flex-1">Cancel</button>
+            <button onClick={confirmOpenSession} className="btn-primary flex-1 flex items-center justify-center gap-2">
+              <Power size={15} /> Start Session
+            </button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Summary modal */}
       <Modal isOpen={!!summaryModal} onClose={() => setSummaryModal(null)} title="Session Summary" size="lg">

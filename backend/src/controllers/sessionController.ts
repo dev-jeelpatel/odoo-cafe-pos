@@ -46,8 +46,9 @@ export const getCurrentSessionSummary = async (req: any, res: Response): Promise
 export const openSession = async (req: any, res: Response): Promise<void> => {
   const existing = await prisma.session.findFirst({ where: { userId: req.user.id, status: 'OPEN' } });
   if (existing) { res.json(existing); return; }
-  const session = await prisma.session.create({ data: { userId: req.user.id } });
-  await prisma.auditLog.create({ data: { userId: req.user.id, action: 'SESSION_OPEN', entityType: 'Session', entityId: session.id } });
+  const openingAmount = parseFloat(req.body?.openingAmount) || 0;
+  const session = await prisma.session.create({ data: { userId: req.user.id, openingAmount } });
+  await prisma.auditLog.create({ data: { userId: req.user.id, action: 'SESSION_OPEN', entityType: 'Session', entityId: session.id, details: { openingAmount } } });
   res.status(201).json(session);
 };
 
