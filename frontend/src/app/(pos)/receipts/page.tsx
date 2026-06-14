@@ -35,6 +35,15 @@ const PAYMENT_META: Record<string, { label: string; icon: any }> = {
 export default function ReceiptsPage() {
   const [search, setSearch] = useState('');
   const [expanded, setExpanded] = useState<string | null>(null);
+
+  const toggleExpand = (order: ReceiptOrder) => {
+    const next = expanded === order.id ? null : order.id;
+    setExpanded(next);
+    // Pre-fill the email input with customer email when expanding, so it's editable
+    if (next && emailInputs[order.id] === undefined && order.customer?.email) {
+      setEmailInputs(prev => ({ ...prev, [order.id]: order.customer!.email! }));
+    }
+  };
   const [emailInputs, setEmailInputs] = useState<Record<string, string>>({});
   const [sending, setSending] = useState<string | null>(null);
 
@@ -50,12 +59,14 @@ export default function ReceiptsPage() {
   });
 
   const sendEmail = async (order: ReceiptOrder) => {
-    const email = emailInputs[order.id] || order.customer?.email;
-    if (!email) { toast.error('Enter an email address'); return; }
+    // emailInputs[order.id] is set on every keystroke; if undefined the input shows customer email as placeholder-value
+    const typed = emailInputs[order.id];
+    const email = typed !== undefined ? typed : (order.customer?.email ?? '');
+    if (!email.trim()) { toast.error('Enter an email address'); return; }
     setSending(order.id);
     try {
-      await api.post(`/receipt-email/${order.id}/send`, { email });
-      toast.success(`Receipt sent to ${email}`);
+      await api.post(`/receipt-email/${order.id}/send`, { email: email.trim() });
+      toast.success(`Receipt sent to ${email.trim()}`);
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to send receipt');
     } finally {
@@ -116,7 +127,7 @@ export default function ReceiptsPage() {
               <div key={order.id} className={clsx('card hover:shadow-md transition-all overflow-hidden relative', isOpen && 'ring-1 ring-indigo-100')}>
                 <div className={clsx('h-1 -mx-4 -mt-4 mb-3 bg-gradient-to-r', isOpen ? 'from-indigo-500 to-purple-500' : 'from-gray-200 to-gray-300')} />
                 {/* Header row */}
-                <button onClick={() => setExpanded(isOpen ? null : order.id)} className="w-full flex items-center justify-between gap-4 text-left">
+                <button onClick={() => toggleExpand(order)} className="w-full flex items-center justify-between gap-4 text-left">
                   <div className="flex items-center gap-3 min-w-0">
                     <div className={clsx('w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-110', typeMeta.bg)}>
                       <TypeIcon size={18} />
