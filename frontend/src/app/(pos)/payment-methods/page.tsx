@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { PaymentMethod } from '@/types';
 import api from '@/lib/api';
 import PageLayout from '@/components/ui/PageLayout';
-import { Banknote, QrCode, CreditCard, ChevronDown, ChevronUp, CheckCircle2, Wallet, Save } from 'lucide-react';
+import { Banknote, QrCode, CreditCard, ChevronDown, ChevronUp, CheckCircle2, Wallet, Save, FlaskConical } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { QRCodeSVG } from 'qrcode.react';
 import clsx from 'clsx';
@@ -13,18 +13,21 @@ const ICONS: Record<string, React.ReactNode> = {
   CASH: <Banknote size={26} />,
   UPI: <QrCode size={26} />,
   CARD: <CreditCard size={26} />,
+  TEST: <FlaskConical size={26} />,
 };
 
 const COLORS: Record<string, { bg: string; text: string; ring: string; gradient: string }> = {
   CASH: { bg: 'bg-emerald-50', text: 'text-emerald-600', ring: 'ring-emerald-200', gradient: 'from-emerald-500 to-emerald-600' },
   UPI: { bg: 'bg-blue-50', text: 'text-blue-600', ring: 'ring-blue-200', gradient: 'from-blue-500 to-blue-600' },
   CARD: { bg: 'bg-purple-50', text: 'text-purple-600', ring: 'ring-purple-200', gradient: 'from-purple-500 to-purple-600' },
+  TEST: { bg: 'bg-amber-50', text: 'text-amber-600', ring: 'ring-amber-200', gradient: 'from-amber-500 to-amber-600' },
 };
 
 const DESCRIPTIONS: Record<string, string> = {
   CASH: 'Accept physical cash at the counter',
   UPI: 'Scan & pay via UPI apps like GPay, PhonePe, Paytm',
   CARD: 'Accept credit & debit card payments',
+  TEST: 'Simulated payment for demos & QA — no real money moves',
 };
 
 export default function PaymentMethodsPage() {
