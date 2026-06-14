@@ -10,6 +10,7 @@ async function main() {
     { method: 'CASH' as const, label: 'Cash' },
     { method: 'UPI' as const, label: 'UPI QR' },
     { method: 'CARD' as const, label: 'Card / Digital' },
+    { method: 'TEST' as const, label: 'Test Payment (Demo)' },
   ]) {
     await prisma.paymentMethodConfig.upsert({ where: { method: m.method }, create: { ...m, enabled: true }, update: {} });
   }
