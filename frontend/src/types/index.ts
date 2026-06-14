@@ -76,7 +76,7 @@ export interface Promotion {
 
 export interface PaymentMethod {
   id: string;
-  method: 'CASH' | 'UPI' | 'CARD';
+  method: 'CASH' | 'UPI' | 'CARD' | 'TEST';
   label: string;
   enabled: boolean;
   upiId?: string | null;
@@ -96,7 +96,7 @@ export interface OrderItem {
 }
 
 export interface PaymentEntry {
-  method: 'CASH' | 'UPI' | 'CARD';
+  method: 'CASH' | 'UPI' | 'CARD' | 'TEST';
   amount: number;
   transactionId?: string;
   reference?: string;
@@ -104,7 +104,7 @@ export interface PaymentEntry {
 
 export interface Payment {
   id: string;
-  paymentMethod: 'CASH' | 'UPI' | 'CARD';
+  paymentMethod: 'CASH' | 'UPI' | 'CARD' | 'TEST';
   amount: number;
   transactionId?: string | null;
   referenceNumber?: string | null;
