@@ -1,7 +1,7 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useCart } from '@/contexts/CartContext';
-import { Minus, Plus, Trash2, Tag, Ticket, ChefHat, CreditCard, Table2, Smartphone } from 'lucide-react';
+import { Minus, Plus, Trash2, Tag, Ticket, ChefHat, CreditCard, Table2, Smartphone, X, ShoppingBag } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import { useQueryClient } from '@tanstack/react-query';
@@ -28,6 +28,27 @@ export default function CartPanel() {
   const [couponInput, setCouponInput] = useState('');
   const [savingOrder, setSavingOrder] = useState(false);
   const [sendingKitchen, setSendingKitchen] = useState(false);
+  const [editingQtyId, setEditingQtyId] = useState<string | null>(null);
+  const [editingQtyValue, setEditingQtyValue] = useState('');
+
+  const itemCount = cart.items.reduce((s, i) => s + i.quantity, 0);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && cart.items.length > 0 && !payModal) {
+        e.preventDefault();
+        setPayModal(true);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [cart.items.length, payModal]);
+
+  const commitQtyEdit = (productId: string) => {
+    const qty = parseInt(editingQtyValue, 10);
+    if (!isNaN(qty)) cart.updateQty(productId, qty);
+    setEditingQtyId(null);
+  };
 
   const buildOrderPayload = () => ({
     tableId: cart.selectedTable?.id || null,
@@ -121,6 +142,14 @@ export default function CartPanel() {
     <div className="flex flex-col h-full bg-white">
       {/* Order type & table/customer */}
       <div className="p-3 border-b border-gray-100 space-y-2">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
+            <ShoppingBag size={15} className="text-gray-400" /> Current Order
+          </h2>
+          {itemCount > 0 && (
+            <span className="bg-indigo-100 text-indigo-700 text-xs font-bold px-2 py-0.5 rounded-full">{itemCount} item{itemCount !== 1 ? 's' : ''}</span>
+          )}
+        </div>
         <div className="flex gap-1.5">
           {ORDER_TYPES.map(t => (
             <button key={t.value} onClick={() => cart.setOrderType(t.value)} className={clsx('flex-1 py-1.5 text-xs rounded-lg font-medium transition-colors', cart.orderType === t.value ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600')}>
@@ -159,7 +188,26 @@ export default function CartPanel() {
               <button onClick={() => cart.updateQty(item.product.id, item.quantity - 1)} className="w-6 h-6 flex items-center justify-center rounded-full bg-gray-200 hover:bg-gray-300">
                 <Minus size={12} />
               </button>
-              <span className="text-sm font-bold w-5 text-center">{item.quantity}</span>
+              {editingQtyId === item.product.id ? (
+                <input
+                  type="number"
+                  min={1}
+                  autoFocus
+                  value={editingQtyValue}
+                  onChange={e => setEditingQtyValue(e.target.value)}
+                  onBlur={() => commitQtyEdit(item.product.id)}
+                  onKeyDown={e => { if (e.key === 'Enter') commitQtyEdit(item.product.id); if (e.key === 'Escape') setEditingQtyId(null); }}
+                  className="text-sm font-bold w-10 text-center border border-indigo-300 rounded-md py-0.5 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                />
+              ) : (
+                <span
+                  onClick={() => { setEditingQtyId(item.product.id); setEditingQtyValue(String(item.quantity)); }}
+                  className="text-sm font-bold w-5 text-center cursor-pointer hover:text-indigo-600"
+                  title="Click to edit quantity"
+                >
+                  {item.quantity}
+                </span>
+              )}
               <button onClick={() => cart.updateQty(item.product.id, item.quantity + 1)} className="w-6 h-6 flex items-center justify-center rounded-full bg-indigo-600 text-white hover:bg-indigo-700">
                 <Plus size={12} />
               </button>
@@ -181,15 +229,37 @@ export default function CartPanel() {
 
       {/* Discounts */}
       <div className="px-3 pb-2 space-y-2">
-        <div className="flex gap-2">
-          <input value={couponInput} onChange={e => setCouponInput(e.target.value.toUpperCase())} placeholder="Coupon code" className="input text-xs flex-1" />
-          <button onClick={applyCoupon} className="btn-secondary text-xs px-3 flex items-center gap-1">
-            <Ticket size={12} /> Apply
+        {cart.coupon ? (
+          <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg px-2.5 py-1.5 text-xs">
+            <span className="flex items-center gap-1.5 text-green-700 font-medium">
+              <Ticket size={12} /> {cart.coupon.code} (-₹{cart.couponDiscount.toFixed(2)})
+            </span>
+            <button onClick={() => cart.setCoupon(null, 0)} className="text-green-600 hover:text-green-800">
+              <X size={14} />
+            </button>
+          </div>
+        ) : (
+          <div className="flex gap-2">
+            <input value={couponInput} onChange={e => setCouponInput(e.target.value.toUpperCase())} placeholder="Coupon code" className="input text-xs flex-1" />
+            <button onClick={applyCoupon} className="btn-secondary text-xs px-3 flex items-center gap-1">
+              <Ticket size={12} /> Apply
+            </button>
+          </div>
+        )}
+        {cart.promotion ? (
+          <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg px-2.5 py-1.5 text-xs">
+            <span className="flex items-center gap-1.5 text-green-700 font-medium truncate">
+              <Tag size={12} className="flex-shrink-0" /> {cart.promotion.name} (-₹{cart.promotionDiscount.toFixed(2)})
+            </span>
+            <button onClick={() => cart.setPromotion(null, 0)} className="text-green-600 hover:text-green-800 flex-shrink-0">
+              <X size={14} />
+            </button>
+          </div>
+        ) : (
+          <button onClick={checkPromotions} className="w-full text-xs text-indigo-600 hover:text-indigo-800 flex items-center gap-1 justify-center py-1">
+            <Tag size={12} /> Check Promotions
           </button>
-        </div>
-        <button onClick={checkPromotions} className="w-full text-xs text-indigo-600 hover:text-indigo-800 flex items-center gap-1 justify-center py-1">
-          <Tag size={12} /> Check Promotions
-        </button>
+        )}
       </div>
 
       {/* Summary */}
@@ -213,7 +283,7 @@ export default function CartPanel() {
             <ChefHat size={16} /> {sendingKitchen ? 'Sending...' : 'To Kitchen'}
           </button>
         </div>
-        <button onClick={() => setPayModal(true)} disabled={cart.items.length === 0} className="btn-primary w-full py-3 flex items-center justify-center gap-2 text-base">
+        <button onClick={() => setPayModal(true)} disabled={cart.items.length === 0} title="Ctrl+Enter" className="btn-primary w-full py-3 flex items-center justify-center gap-2 text-base">
           <CreditCard size={18} /> Charge ₹{cart.total.toFixed(2)}
         </button>
         {cart.items.length > 0 && (
