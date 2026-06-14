@@ -6,7 +6,7 @@ import { useCart } from '@/contexts/CartContext';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import { QRCodeSVG } from 'qrcode.react';
-import { CreditCard, Banknote, QrCode, Plus, Trash2 } from 'lucide-react';
+import { CreditCard, Banknote, QrCode, Plus, Trash2, AlertCircle } from 'lucide-react';
 
 interface Props { isOpen: boolean; onClose: () => void; onSuccess: () => void; }
 interface PayEntry { method: 'CASH' | 'UPI' | 'CARD'; amount: number; transactionId?: string; reference?: string; }
@@ -98,12 +98,32 @@ export default function PaymentModal({ isOpen, onClose, onSuccess }: Props) {
               {parseFloat(cashReceived) > remaining && <p className="text-green-600 text-sm">Change: ₹{(parseFloat(cashReceived) - remaining).toFixed(2)}</p>}
             </div>
           )}
-          {activeMethod === 'UPI' && (
-            <div className="space-y-3">
-              <div className="flex justify-center"><QRCodeSVG value={`upi://pay?amount=${remaining}&cu=INR`} size={140} /></div>
-              <input value={upiRef} onChange={e => setUpiRef(e.target.value)} placeholder="UPI Reference number" className="input" />
-            </div>
-          )}
+          {activeMethod === 'UPI' && (() => {
+            const upiMethod = methods.find(m => m.method === 'UPI');
+            const upiId = upiMethod?.upiId;
+            const upiUri = upiId
+              ? `upi://pay?pa=${encodeURIComponent(upiId)}&pn=Cafe+POS&am=${remaining.toFixed(2)}&cu=INR`
+              : null;
+            return (
+              <div className="space-y-3">
+                {upiUri ? (
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="bg-white p-3 rounded-xl border border-gray-200 shadow-sm">
+                      <QRCodeSVG value={upiUri} size={160} />
+                    </div>
+                    <p className="text-xs text-gray-500">Scan to pay <span className="font-semibold text-gray-700">₹{remaining.toFixed(2)}</span> via UPI</p>
+                    <p className="text-[11px] text-gray-400 font-mono">{upiId}</p>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center gap-2 bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-700">
+                    <QrCode size={16} />
+                    No UPI ID configured — go to Payment Methods to add one.
+                  </div>
+                )}
+                <input value={upiRef} onChange={e => setUpiRef(e.target.value)} placeholder="UPI Reference / Transaction ID" className="input" />
+              </div>
+            );
+          })()}
           {activeMethod === 'CARD' && (
             <input value={cardTxId} onChange={e => setCardTxId(e.target.value)} placeholder="Transaction ID" className="input" />
           )}
