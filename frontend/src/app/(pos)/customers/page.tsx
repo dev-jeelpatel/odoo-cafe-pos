@@ -9,6 +9,7 @@ import { Plus, Pencil, Trash2, Search, Mail, Phone, MoreVertical, LayoutList, La
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import { format } from 'date-fns';
+import { isValidEmail, isValidPhone, digitsOnly } from '@/lib/validation';
 
 export default function CustomersPage() {
   const qc = useQueryClient();
@@ -38,6 +39,14 @@ export default function CustomersPage() {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (form.phone && !isValidPhone(form.phone)) {
+      toast.error('Enter a valid 10-digit phone number');
+      return;
+    }
+    if (form.email && !isValidEmail(form.email)) {
+      toast.error('Enter a valid email address');
+      return;
+    }
     setSaving(true);
     try {
       if (editing) await api.put(`/customers/${editing.id}`, form);
@@ -205,8 +214,8 @@ export default function CustomersPage() {
           </div>
 
           <input required value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="Full name" className="input" autoFocus />
-          <input value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} placeholder="Phone number" className="input" />
-          <input type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} placeholder="Email (optional)" className="input" />
+          <input type="tel" inputMode="numeric" maxLength={10} value={form.phone} onChange={e => setForm(p => ({ ...p, phone: digitsOnly(e.target.value) }))} placeholder="10-digit phone number" className="input" />
+          <input type="email" maxLength={100} value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} placeholder="Email (optional)" className="input" />
           <div className="flex gap-2">
             <button type="button" onClick={() => setModal(false)} className="btn-secondary flex-1">Cancel</button>
             <button type="submit" disabled={saving} className="btn-primary flex-1 disabled:opacity-60">{saving ? 'Saving...' : editing ? 'Update' : 'Create'}</button>
