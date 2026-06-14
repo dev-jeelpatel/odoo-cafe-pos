@@ -1,22 +1,62 @@
 'use client';
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Product, Category } from '@/types';
 import api from '@/lib/api';
 import { useCart } from '@/contexts/CartContext';
 import { getProductEmoji } from '@/lib/productVisuals';
-import { Search, Plus, Minus, Sparkles } from 'lucide-react';
+import { Search, Plus, Minus, Sparkles, Star, X, PackageSearch } from 'lucide-react';
+
+const FAVORITES_KEY = 'pos_favorite_products';
 
 export default function ProductGrid() {
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState('all');
+  const [favorites, setFavorites] = useState<Set<string>>(new Set());
+  const searchRef = useRef<HTMLInputElement>(null);
   const { items, addItem, removeItem, updateQty } = useCart();
 
   const { data: categories = [] } = useQuery<Category[]>({ queryKey: ['categories'], queryFn: () => api.get('/categories').then(r => r.data) });
   const { data: products = [] } = useQuery<Product[]>({ queryKey: ['products'], queryFn: () => api.get('/products').then(r => r.data) });
 
+  useEffect(() => {
+    const saved = localStorage.getItem(FAVORITES_KEY);
+    if (saved) setFavorites(new Set(JSON.parse(saved)));
+  }, []);
+
+  const toggleFavorite = (id: string) => {
+    setFavorites(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      localStorage.setItem(FAVORITES_KEY, JSON.stringify([...next]));
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      const isTyping = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
+
+      if (e.key === '/' && !isTyping) {
+        e.preventDefault();
+        searchRef.current?.focus();
+      } else if (e.key === 'Escape' && target === searchRef.current && search) {
+        setSearch('');
+        searchRef.current?.blur();
+      } else if (e.altKey && !isTyping && /^[1-9]$/.test(e.key)) {
+        e.preventDefault();
+        const n = parseInt(e.key, 10);
+        if (n === 1) setActiveCategory('all');
+        else if (categories[n - 2]) setActiveCategory(categories[n - 2].id);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [categories, search]);
+
   const filtered = products.filter(p => {
-    const matchCat = activeCategory === 'all' || p.categoryId === activeCategory;
+    const matchCat = activeCategory === 'all' || (activeCategory === 'favorites' ? favorites.has(p.id) : p.categoryId === activeCategory);
     const matchSearch = p.name.toLowerCase().includes(search.toLowerCase());
     return matchCat && matchSearch && p.active;
   });
@@ -28,7 +68,12 @@ export default function ProductGrid() {
       <div className="flex-shrink-0 mb-3">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search products..." className="input pl-9" />
+          <input ref={searchRef} value={search} onChange={e => setSearch(e.target.value)} placeholder="Search products... (press / to focus)" className="input pl-9 pr-9" />
+          {search && (
+            <button onClick={() => { setSearch(''); searchRef.current?.focus(); }} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+              <X size={16} />
+            </button>
+          )}
         </div>
       </div>
 
@@ -36,6 +81,11 @@ export default function ProductGrid() {
         <button onClick={() => setActiveCategory('all')} className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap flex-shrink-0 transition-colors flex items-center gap-1.5 ${activeCategory === 'all' ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
           <Sparkles size={12} /> All Items
         </button>
+        {favorites.size > 0 && (
+          <button onClick={() => setActiveCategory('favorites')} className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap flex-shrink-0 transition-colors flex items-center gap-1.5 ${activeCategory === 'favorites' ? 'bg-yellow-400 text-yellow-900' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+            <Star size={12} fill={activeCategory === 'favorites' ? 'currentColor' : 'none'} /> Favorites
+          </button>
+        )}
         {categories.map(cat => (
           <button key={cat.id} onClick={() => setActiveCategory(cat.id)}
             className="px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap flex-shrink-0 transition-colors flex items-center gap-1.5"
@@ -54,8 +104,15 @@ export default function ProductGrid() {
             const color = product.category?.color || '#6366f1';
             return (
               <div key={product.id}
-                className="bg-white border border-gray-200 rounded-2xl overflow-hidden text-left hover:border-indigo-300 hover:shadow-lg transition-all group flex flex-col"
+                className="relative bg-white border border-gray-200 rounded-2xl overflow-hidden text-left hover:border-indigo-300 hover:shadow-lg transition-all group flex flex-col"
               >
+                <button
+                  onClick={(e) => { e.stopPropagation(); toggleFavorite(product.id); }}
+                  title={favorites.has(product.id) ? 'Remove from favorites' : 'Add to favorites'}
+                  className="absolute top-1.5 left-1.5 z-10 w-6 h-6 flex items-center justify-center rounded-full bg-white/80 backdrop-blur-sm shadow-sm hover:bg-white transition-colors"
+                >
+                  <Star size={13} className={favorites.has(product.id) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-400'} />
+                </button>
                 <button onClick={() => addItem(product)} className="block w-full text-left">
                   <div className="relative w-full aspect-[4/3] flex items-center justify-center overflow-hidden" style={{ background: `linear-gradient(135deg, ${color}22, ${color}08)` }}>
                     {product.imageUrl ? (
@@ -96,7 +153,13 @@ export default function ProductGrid() {
               </div>
             );
           })}
-          {filtered.length === 0 && <div className="col-span-full text-center text-gray-400 py-12">No products found</div>}
+          {filtered.length === 0 && (
+            <div className="col-span-full text-center text-gray-400 py-12">
+              <PackageSearch size={40} className="mx-auto mb-2 opacity-30" />
+              <p className="text-sm">No products found</p>
+              {search && <p className="text-xs mt-1">Try a different search term</p>}
+            </div>
+          )}
         </div>
       </div>
     </div>
