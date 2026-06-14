@@ -38,7 +38,7 @@ export default function POSPage() {
           <h1 className="font-bold text-gray-900">POS Terminal</h1>
           {selectedTable && (
             <span className="ml-2 bg-indigo-100 text-indigo-700 text-xs px-2 py-1 rounded-full font-medium">
-              Table {selectedTable.number}
+              Table {selectedTable.tableNumber}
             </span>
           )}
           <div className="ml-auto flex items-center gap-3 text-sm text-gray-600">
