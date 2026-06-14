@@ -6,6 +6,7 @@ import api from '@/lib/api';
 import { useCart } from '@/contexts/CartContext';
 import { Search, Plus, UserCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { isValidEmail, isValidPhone, digitsOnly } from '@/lib/validation';
 
 interface Props { onClose: () => void; }
 
@@ -25,6 +26,14 @@ export default function CustomerSearch({ onClose }: Props) {
 
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (form.phone && !isValidPhone(form.phone)) {
+      toast.error('Enter a valid 10-digit phone number');
+      return;
+    }
+    if (form.email && !isValidEmail(form.email)) {
+      toast.error('Enter a valid email address');
+      return;
+    }
     try {
       const { data } = await api.post('/customers', form);
       qc.invalidateQueries({ queryKey: ['customers'] });
@@ -60,8 +69,8 @@ export default function CustomerSearch({ onClose }: Props) {
       ) : (
         <form onSubmit={create} className="space-y-3">
           <input required value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="Customer name *" className="input" />
-          <input value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} placeholder="Phone number" className="input" />
-          <input type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} placeholder="Email" className="input" />
+          <input type="tel" inputMode="numeric" maxLength={10} value={form.phone} onChange={e => setForm(p => ({ ...p, phone: digitsOnly(e.target.value) }))} placeholder="10-digit phone number" className="input" />
+          <input type="email" maxLength={100} value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} placeholder="Email" className="input" />
           <div className="flex gap-2">
             <button type="button" onClick={() => setCreating(false)} className="btn-secondary flex-1">Back</button>
             <button type="submit" className="btn-primary flex-1">Create & Select</button>
