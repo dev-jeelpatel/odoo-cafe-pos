@@ -5,6 +5,7 @@ import { Floor, Table } from '@/types';
 import api from '@/lib/api';
 import PageLayout from '@/components/ui/PageLayout';
 import Modal from '@/components/ui/Modal';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   Plus, Pencil, Trash2, Building2, Armchair, CheckCircle2, Users,
   Clock, Ban, LayoutGrid, ToggleLeft, ToggleRight,
@@ -21,12 +22,20 @@ const STATUS_META: Record<string, { label: string; icon: typeof CheckCircle2; cl
 
 export default function FloorsPage() {
   const qc = useQueryClient();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'ADMIN';
+
   const [floorModal, setFloorModal] = useState(false);
   const [tableModal, setTableModal] = useState(false);
   const [editFloor, setEditFloor] = useState<Floor | null>(null);
   const [editTable, setEditTable] = useState<Table | null>(null);
   const [floorForm, setFloorForm] = useState({ name: '' });
   const [tableForm, setTableForm] = useState({ tableNumber: '', seats: '4', floorId: '', status: 'AVAILABLE', active: true });
+
+  // Employee-only: lightweight status-change modal
+  const [statusModal, setStatusModal] = useState(false);
+  const [statusTable, setStatusTable] = useState<Table | null>(null);
+  const [pendingStatus, setPendingStatus] = useState('');
 
   const { data: floors = [] } = useQuery<Floor[]>({ queryKey: ['floors'], queryFn: () => api.get('/floors').then(r => r.data) });
   const { data: tables = [] } = useQuery<Table[]>({ queryKey: ['tables'], queryFn: () => api.get('/floors/tables').then(r => r.data) });
@@ -67,6 +76,22 @@ export default function FloorsPage() {
     toast.success('Table deleted');
   };
 
+  const changeTableStatus = async () => {
+    if (!statusTable || !pendingStatus) return;
+    try {
+      await api.put(`/floors/tables/${statusTable.id}`, { status: pendingStatus });
+      qc.invalidateQueries({ queryKey: ['tables'] });
+      setStatusModal(false);
+      toast.success('Table status updated');
+    } catch (err: any) { toast.error(err.response?.data?.message || 'Error'); }
+  };
+
+  const openStatusModal = (t: Table) => {
+    setStatusTable(t);
+    setPendingStatus(t.status);
+    setStatusModal(true);
+  };
+
   const counts = {
     total: tables.length,
     available: tables.filter(t => t.status === 'AVAILABLE').length,
@@ -77,10 +102,12 @@ export default function FloorsPage() {
 
   return (
     <PageLayout title="Floors & Tables" actions={
-      <div className="flex gap-2">
-        <button onClick={() => { setEditFloor(null); setFloorForm({ name: '' }); setFloorModal(true); }} className="btn-secondary flex items-center gap-2"><Building2 size={16} />Add Floor</button>
-        <button onClick={() => { setEditTable(null); setTableForm({ tableNumber: '', seats: '4', floorId: floors[0]?.id || '', status: 'AVAILABLE', active: true }); setTableModal(true); }} className="btn-primary flex items-center gap-2"><Plus size={16} />Add Table</button>
-      </div>
+      isAdmin ? (
+        <div className="flex gap-2">
+          <button onClick={() => { setEditFloor(null); setFloorForm({ name: '' }); setFloorModal(true); }} className="btn-secondary flex items-center gap-2"><Building2 size={16} />Add Floor</button>
+          <button onClick={() => { setEditTable(null); setTableForm({ tableNumber: '', seats: '4', floorId: floors[0]?.id || '', status: 'AVAILABLE', active: true }); setTableModal(true); }} className="btn-primary flex items-center gap-2"><Plus size={16} />Add Table</button>
+        </div>
+      ) : undefined
     }>
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
@@ -111,7 +138,9 @@ export default function FloorsPage() {
           <Building2 size={40} className="mx-auto mb-3 opacity-30" />
           <p className="text-lg font-medium">No floors yet</p>
           <p className="text-sm mt-1 mb-4">Add a floor to start setting up your tables.</p>
-          <button onClick={() => { setEditFloor(null); setFloorForm({ name: '' }); setFloorModal(true); }} className="btn-primary inline-flex items-center gap-2"><Plus size={16} />Add Floor</button>
+          {isAdmin && (
+            <button onClick={() => { setEditFloor(null); setFloorForm({ name: '' }); setFloorModal(true); }} className="btn-primary inline-flex items-center gap-2"><Plus size={16} />Add Floor</button>
+          )}
         </div>
       )}
 
@@ -125,10 +154,12 @@ export default function FloorsPage() {
                 {floor.name}
                 <span className="text-xs font-medium text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{floorTables.length} table{floorTables.length !== 1 ? 's' : ''}</span>
               </h2>
-              <div className="flex gap-1">
-                <button onClick={() => { setEditFloor(floor); setFloorForm({ name: floor.name }); setFloorModal(true); }} className="p-1.5 hover:bg-indigo-50 hover:scale-110 rounded-lg text-indigo-600 transition-all"><Pencil size={14} /></button>
-                <button onClick={() => deleteFloor(floor.id)} className="p-1.5 hover:bg-red-50 hover:scale-110 rounded-lg text-red-500 transition-all"><Trash2 size={14} /></button>
-              </div>
+              {isAdmin && (
+                <div className="flex gap-1">
+                  <button onClick={() => { setEditFloor(floor); setFloorForm({ name: floor.name }); setFloorModal(true); }} className="p-1.5 hover:bg-indigo-50 hover:scale-110 rounded-lg text-indigo-600 transition-all"><Pencil size={14} /></button>
+                  <button onClick={() => deleteFloor(floor.id)} className="p-1.5 hover:bg-red-50 hover:scale-110 rounded-lg text-red-500 transition-all"><Trash2 size={14} /></button>
+                </div>
+              )}
             </div>
 
             {floorTables.length === 0 ? (
@@ -141,11 +172,16 @@ export default function FloorsPage() {
                   const meta = STATUS_META[t.status];
                   const StatusIcon = meta.icon;
                   return (
-                    <div key={t.id} className={clsx(
-                      'card py-4 text-center group relative border-2 transition-all hover:shadow-lg hover:-translate-y-1',
-                      meta.cardBorder,
-                      !t.active && 'opacity-50'
-                    )}>
+                    <div
+                      key={t.id}
+                      onClick={() => !isAdmin && openStatusModal(t)}
+                      className={clsx(
+                        'card py-4 text-center group relative border-2 transition-all hover:shadow-lg hover:-translate-y-1',
+                        meta.cardBorder,
+                        !t.active && 'opacity-50',
+                        !isAdmin && 'cursor-pointer'
+                      )}
+                    >
                       <div className={clsx('w-11 h-11 mx-auto rounded-2xl flex items-center justify-center mb-2 transition-transform group-hover:scale-110 group-hover:rotate-3', meta.iconBg)}>
                         <StatusIcon size={20} />
                       </div>
@@ -159,10 +195,15 @@ export default function FloorsPage() {
                       {!t.active && (
                         <span className="badge mt-1 ml-1 bg-gray-200 text-gray-500">Inactive</span>
                       )}
-                      <div className="flex justify-center gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => { setEditTable(t); setTableForm({ tableNumber: t.tableNumber, seats: String(t.seats), floorId: t.floorId, status: t.status, active: t.active }); setTableModal(true); }} className="p-1 hover:bg-indigo-50 hover:scale-110 rounded text-indigo-600 transition-all"><Pencil size={12} /></button>
-                        <button onClick={() => deleteTable(t.id)} className="p-1 hover:bg-red-50 hover:scale-110 rounded text-red-500 transition-all"><Trash2 size={12} /></button>
-                      </div>
+                      {isAdmin && (
+                        <div className="flex justify-center gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button onClick={() => { setEditTable(t); setTableForm({ tableNumber: t.tableNumber, seats: String(t.seats), floorId: t.floorId, status: t.status, active: t.active }); setTableModal(true); }} className="p-1 hover:bg-indigo-50 hover:scale-110 rounded text-indigo-600 transition-all"><Pencil size={12} /></button>
+                          <button onClick={() => deleteTable(t.id)} className="p-1 hover:bg-red-50 hover:scale-110 rounded text-red-500 transition-all"><Trash2 size={12} /></button>
+                        </div>
+                      )}
+                      {!isAdmin && (
+                        <p className="text-[10px] text-gray-400 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">Tap to change status</p>
+                      )}
                     </div>
                   );
                 })}
@@ -172,84 +213,119 @@ export default function FloorsPage() {
         );
       })}
 
-      <Modal isOpen={floorModal} onClose={() => setFloorModal(false)} title={editFloor ? 'Edit Floor' : 'Add Floor'} size="sm">
-        <form onSubmit={submitFloor} className="space-y-3">
-          <div className="flex items-center gap-3 bg-gray-50 rounded-xl p-3 border border-gray-100">
-            <div className="bg-indigo-50 text-indigo-600 p-2.5 rounded-xl"><Building2 size={20} /></div>
-            <div className="min-w-0">
-              <p className="text-xs text-gray-400">Preview</p>
-              <p className="font-semibold text-gray-800 truncate">{floorForm.name.trim() || 'Floor name'}</p>
+      {/* Admin: Floor modal */}
+      {isAdmin && (
+        <Modal isOpen={floorModal} onClose={() => setFloorModal(false)} title={editFloor ? 'Edit Floor' : 'Add Floor'} size="sm">
+          <form onSubmit={submitFloor} className="space-y-3">
+            <div className="flex items-center gap-3 bg-gray-50 rounded-xl p-3 border border-gray-100">
+              <div className="bg-indigo-50 text-indigo-600 p-2.5 rounded-xl"><Building2 size={20} /></div>
+              <div className="min-w-0">
+                <p className="text-xs text-gray-400">Preview</p>
+                <p className="font-semibold text-gray-800 truncate">{floorForm.name.trim() || 'Floor name'}</p>
+              </div>
             </div>
-          </div>
-          <input required value={floorForm.name} onChange={e => setFloorForm({ name: e.target.value })} placeholder="e.g. Ground Floor, Terrace" className="input" autoFocus />
-          <div className="flex gap-2"><button type="button" onClick={() => setFloorModal(false)} className="btn-secondary flex-1">Cancel</button><button type="submit" className="btn-primary flex-1">{editFloor ? 'Update' : 'Create'}</button></div>
-        </form>
-      </Modal>
+            <input required value={floorForm.name} onChange={e => setFloorForm({ name: e.target.value })} placeholder="e.g. Ground Floor, Terrace" className="input" autoFocus />
+            <div className="flex gap-2"><button type="button" onClick={() => setFloorModal(false)} className="btn-secondary flex-1">Cancel</button><button type="submit" className="btn-primary flex-1">{editFloor ? 'Update' : 'Create'}</button></div>
+          </form>
+        </Modal>
+      )}
 
-      <Modal isOpen={tableModal} onClose={() => setTableModal(false)} title={editTable ? 'Edit Table' : 'Add Table'} size="sm">
-        <form onSubmit={submitTable} className="space-y-3">
-          {/* Live preview */}
-          <div className="flex items-center gap-3 bg-gray-50 rounded-xl p-3 border border-gray-100">
-            <div className={clsx('w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0', STATUS_META[tableForm.status]?.iconBg)}>
-              {(() => { const Icon = STATUS_META[tableForm.status]?.icon || CheckCircle2; return <Icon size={20} />; })()}
+      {/* Admin: Table modal */}
+      {isAdmin && (
+        <Modal isOpen={tableModal} onClose={() => setTableModal(false)} title={editTable ? 'Edit Table' : 'Add Table'} size="sm">
+          <form onSubmit={submitTable} className="space-y-3">
+            <div className="flex items-center gap-3 bg-gray-50 rounded-xl p-3 border border-gray-100">
+              <div className={clsx('w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0', STATUS_META[tableForm.status]?.iconBg)}>
+                {(() => { const Icon = STATUS_META[tableForm.status]?.icon || CheckCircle2; return <Icon size={20} />; })()}
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs text-gray-400">Preview</p>
+                <p className="font-semibold text-gray-800 truncate">T{tableForm.tableNumber || '?'} · {tableForm.seats || 0} seats</p>
+              </div>
             </div>
-            <div className="min-w-0">
-              <p className="text-xs text-gray-400">Preview</p>
-              <p className="font-semibold text-gray-800 truncate">T{tableForm.tableNumber || '?'} · {tableForm.seats || 0} seats</p>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Table Number</label>
+              <input required value={tableForm.tableNumber} onChange={e => setTableForm(p => ({ ...p, tableNumber: e.target.value }))} placeholder="e.g. 1, A1" className="input" />
             </div>
-          </div>
 
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Table Number</label>
-            <input required value={tableForm.tableNumber} onChange={e => setTableForm(p => ({ ...p, tableNumber: e.target.value }))} placeholder="e.g. 1, A1" className="input" />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Seats</label>
-            <div className="flex items-center gap-2">
-              <Armchair size={16} className="text-gray-400" />
-              <input required type="number" min="1" value={tableForm.seats} onChange={e => setTableForm(p => ({ ...p, seats: e.target.value }))} placeholder="Seats" className="input flex-1" />
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Seats</label>
+              <div className="flex items-center gap-2">
+                <Armchair size={16} className="text-gray-400" />
+                <input required type="number" min="1" value={tableForm.seats} onChange={e => setTableForm(p => ({ ...p, seats: e.target.value }))} placeholder="Seats" className="input flex-1" />
+              </div>
             </div>
-          </div>
 
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Floor</label>
-            <select value={tableForm.floorId} onChange={e => setTableForm(p => ({ ...p, floorId: e.target.value }))} className="input">
-              {floors.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
-            </select>
-          </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Floor</label>
+              <select value={tableForm.floorId} onChange={e => setTableForm(p => ({ ...p, floorId: e.target.value }))} className="input">
+                {floors.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+              </select>
+            </div>
 
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Status</label>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Status</label>
+              <div className="grid grid-cols-2 gap-2">
+                {Object.entries(STATUS_META).map(([key, meta]) => {
+                  const Icon = meta.icon;
+                  const active = tableForm.status === key;
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setTableForm(p => ({ ...p, status: key }))}
+                      className={clsx(
+                        'flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-all',
+                        active ? clsx(meta.classes, 'border-current scale-[1.02]') : 'border-gray-200 text-gray-500 hover:bg-gray-50'
+                      )}
+                    >
+                      <Icon size={14} /> {meta.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <button type="button" onClick={() => setTableForm(p => ({ ...p, active: !p.active }))} className="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-800">
+              {tableForm.active ? <ToggleRight size={28} className="text-indigo-600" /> : <ToggleLeft size={28} className="text-gray-400" />}
+              Table is {tableForm.active ? 'active' : 'inactive'}
+            </button>
+
+            <div className="flex gap-2 pt-1"><button type="button" onClick={() => setTableModal(false)} className="btn-secondary flex-1">Cancel</button><button type="submit" className="btn-primary flex-1">{editTable ? 'Update' : 'Create'}</button></div>
+          </form>
+        </Modal>
+      )}
+
+      {/* Employee: Status-change modal */}
+      {!isAdmin && statusTable && (
+        <Modal isOpen={statusModal} onClose={() => setStatusModal(false)} title={`Table T${statusTable.tableNumber} — Change Status`} size="sm">
+          <div className="space-y-3">
             <div className="grid grid-cols-2 gap-2">
               {Object.entries(STATUS_META).map(([key, meta]) => {
                 const Icon = meta.icon;
-                const active = tableForm.status === key;
+                const active = pendingStatus === key;
                 return (
                   <button
                     key={key}
-                    type="button"
-                    onClick={() => setTableForm(p => ({ ...p, status: key }))}
+                    onClick={() => setPendingStatus(key)}
                     className={clsx(
-                      'flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-all',
-                      active ? clsx(meta.classes, 'border-current scale-[1.02]') : 'border-gray-200 text-gray-500 hover:bg-gray-50'
+                      'flex items-center gap-2 px-3 py-3 rounded-xl border text-sm font-medium transition-all',
+                      active ? clsx(meta.classes, 'border-current scale-[1.02] shadow-sm') : 'border-gray-200 text-gray-500 hover:bg-gray-50'
                     )}
                   >
-                    <Icon size={14} /> {meta.label}
+                    <Icon size={16} /> {meta.label}
                   </button>
                 );
               })}
             </div>
+            <div className="flex gap-2 pt-1">
+              <button onClick={() => setStatusModal(false)} className="btn-secondary flex-1">Cancel</button>
+              <button onClick={changeTableStatus} className="btn-primary flex-1">Update Status</button>
+            </div>
           </div>
-
-          <button type="button" onClick={() => setTableForm(p => ({ ...p, active: !p.active }))} className="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-800">
-            {tableForm.active ? <ToggleRight size={28} className="text-indigo-600" /> : <ToggleLeft size={28} className="text-gray-400" />}
-            Table is {tableForm.active ? 'active' : 'inactive'}
-          </button>
-
-          <div className="flex gap-2 pt-1"><button type="button" onClick={() => setTableModal(false)} className="btn-secondary flex-1">Cancel</button><button type="submit" className="btn-primary flex-1">{editTable ? 'Update' : 'Create'}</button></div>
-        </form>
-      </Modal>
+        </Modal>
+      )}
     </PageLayout>
   );
 }

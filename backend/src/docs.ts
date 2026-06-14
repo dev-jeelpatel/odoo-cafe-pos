@@ -158,7 +158,7 @@ export const docsHtml = `<!DOCTYPE html>
   <div class="section">
     <div class="section-title">👤 Users / Employees  <span class="badge badge-red">admin</span></div>
     ${ep('GET','/api/users','List all users (Admin only)',true)}
-    ${ep('POST','/api/users','Create user',true,`{ "name": "Cashier 1", "email": "c1@cafe.com", "password": "pass123", "role": "CASHIER" }`)}
+    ${ep('POST','/api/users','Create user',true,`{ "name": "Employee 1", "email": "emp1@cafe.com", "password": "pass123", "role": "EMPLOYEE" }`)}
     ${ep('PUT','/api/users/:id','Update user',true)}
     ${ep('PUT','/api/users/:id/password','Change password',true,`{ "password": "newpass123" }`)}
     ${ep('PUT','/api/users/:id/archive','Archive user',true)}

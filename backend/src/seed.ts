@@ -17,7 +17,7 @@ async function main() {
   // Users
   const users = [
     { email: 'admin@cafe.com', name: 'Admin', password: 'admin123', role: 'ADMIN' as const },
-    { email: 'meera@cafe.com', name: 'Meera Pillai', password: 'cashier123', role: 'CASHIER' as const },
+    { email: 'meera@cafe.com', name: 'Meera Pillai', password: 'cashier123', role: 'EMPLOYEE' as const },
     { email: 'vikas@cafe.com', name: 'Vikas Kumar', password: 'employee123', role: 'EMPLOYEE' as const },
   ];
   for (const u of users) {

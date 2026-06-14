@@ -5,7 +5,7 @@ import { User } from '@/types';
 import api from '@/lib/api';
 import PageLayout from '@/components/ui/PageLayout';
 import Modal from '@/components/ui/Modal';
-import { Plus, Pencil, Trash2, Archive, ArchiveRestore, Key, LayoutList, LayoutGrid, Search, Users, ShieldCheck, UserCog, Wallet, Eye, EyeOff, MoreVertical } from 'lucide-react';
+import { Plus, Pencil, Trash2, Archive, ArchiveRestore, Key, LayoutList, LayoutGrid, Search, Users, ShieldCheck, UserCog, Eye, EyeOff, MoreVertical } from 'lucide-react';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import { format } from 'date-fns';
@@ -14,7 +14,6 @@ import { avatarUrl } from '@/lib/avatar';
 const ROLE_META: Record<string, { label: string; classes: string; icon: typeof ShieldCheck; avatar: string }> = {
   ADMIN: { label: 'Admin', classes: 'bg-red-100 text-red-700', icon: ShieldCheck, avatar: 'bg-red-500' },
   EMPLOYEE: { label: 'Employee', classes: 'bg-blue-100 text-blue-700', icon: UserCog, avatar: 'bg-blue-500' },
-  CASHIER: { label: 'Cashier', classes: 'bg-green-100 text-green-700', icon: Wallet, avatar: 'bg-green-500' },
 };
 
 function Avatar({ seed, archived, size = 36 }: { seed: string; archived: boolean; size?: number }) {
@@ -249,7 +248,7 @@ export default function EmployeesPage() {
           <div>
             <label className="block text-sm font-medium mb-1.5">Role</label>
             <div className="grid grid-cols-3 gap-2">
-              {(['ADMIN', 'EMPLOYEE', 'CASHIER'] as const).map(role => {
+              {(['ADMIN', 'EMPLOYEE'] as const).map(role => {
                 const meta = ROLE_META[role];
                 const Icon = meta.icon;
                 const active = form.role === role;

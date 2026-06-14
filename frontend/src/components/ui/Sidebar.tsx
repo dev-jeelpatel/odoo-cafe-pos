@@ -15,11 +15,11 @@ const groups: { label: string; links: { href: string; label: string; icon: any; 
   {
     label: 'Operations',
     links: [
-      { href: '/pos', label: 'POS Terminal', icon: ShoppingCart, roles: ['ADMIN', 'EMPLOYEE', 'CASHIER'] },
-      { href: '/orders', label: 'Orders', icon: LayoutGrid, roles: ['ADMIN', 'EMPLOYEE', 'CASHIER'] },
-      { href: '/kds', label: 'Kitchen Display', icon: ChefHat, roles: ['ADMIN', 'EMPLOYEE', 'CASHIER'], newTab: true },
-      { href: '/customers', label: 'Customers', icon: Users, roles: ['ADMIN', 'EMPLOYEE', 'CASHIER'] },
-      { href: '/sessions', label: 'Sessions', icon: Clock, roles: ['ADMIN', 'EMPLOYEE', 'CASHIER'] },
+      { href: '/pos', label: 'POS Terminal', icon: ShoppingCart, roles: ['ADMIN', 'EMPLOYEE'] },
+      { href: '/orders', label: 'Orders', icon: LayoutGrid, roles: ['ADMIN', 'EMPLOYEE'] },
+      { href: '/kds', label: 'Kitchen Display', icon: ChefHat, roles: ['ADMIN', 'EMPLOYEE'], newTab: true },
+      { href: '/customers', label: 'Customers', icon: Users, roles: ['ADMIN', 'EMPLOYEE'] },
+      { href: '/sessions', label: 'Sessions', icon: Clock, roles: ['ADMIN', 'EMPLOYEE'] },
     ],
   },
   {
@@ -27,7 +27,7 @@ const groups: { label: string; links: { href: string; label: string; icon: any; 
     links: [
       { href: '/products', label: 'Products', icon: Coffee, roles: ['ADMIN'] },
       { href: '/categories', label: 'Categories', icon: Tag, roles: ['ADMIN'] },
-      { href: '/floors', label: 'Floors & Tables', icon: Building2, roles: ['ADMIN'] },
+      { href: '/floors', label: 'Floors & Tables', icon: Building2, roles: ['ADMIN', 'EMPLOYEE'] },
       { href: '/payment-methods', label: 'Payment Methods', icon: CreditCard, roles: ['ADMIN'] },
       { href: '/coupons', label: 'Coupons', icon: TicketPercent, roles: ['ADMIN'] },
       { href: '/promotions', label: 'Promotions', icon: Percent, roles: ['ADMIN'] },
@@ -38,7 +38,7 @@ const groups: { label: string; links: { href: string; label: string; icon: any; 
     links: [
       { href: '/employees', label: 'Employees', icon: Layers, roles: ['ADMIN'] },
       { href: '/reports', label: 'Reports', icon: BarChart3, roles: ['ADMIN'] },
-      { href: '/receipts', label: 'Receipts', icon: ReceiptText, roles: ['ADMIN'] },
+      { href: '/receipts', label: 'Receipts', icon: ReceiptText, roles: ['ADMIN', 'EMPLOYEE'] },
       { href: '/audit-logs', label: 'Audit Logs', icon: Shield, roles: ['ADMIN'] },
     ],
   },
