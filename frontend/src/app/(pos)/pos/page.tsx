@@ -1,19 +1,29 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Sidebar from '@/components/ui/Sidebar';
 import ProductGrid from '@/components/pos/ProductGrid';
 import CartPanel from '@/components/pos/CartPanel';
-import { Menu } from 'lucide-react';
+import KeyboardShortcutsModal from '@/components/pos/KeyboardShortcutsModal';
+import { Menu, Clock, Keyboard } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
 import { useSidebar } from '@/contexts/SidebarContext';
+import { avatarUrl } from '@/lib/avatar';
+import { format } from 'date-fns';
 import clsx from 'clsx';
 
 export default function POSPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [now, setNow] = useState(new Date());
   const { user } = useAuth();
   const { selectedTable } = useCart();
   const { collapsed } = useSidebar();
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 60000);
+    return () => clearInterval(id);
+  }, []);
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-100">
@@ -31,13 +41,27 @@ export default function POSPage() {
               Table {selectedTable.number}
             </span>
           )}
-          <div className="ml-auto flex items-center gap-2 text-sm text-gray-600">
-            <div className="w-7 h-7 bg-indigo-600 text-white rounded-full flex items-center justify-center text-xs font-bold">
-              {user?.name[0]}
+          <div className="ml-auto flex items-center gap-3 text-sm text-gray-600">
+            <div className="hidden md:flex items-center gap-1.5 text-gray-400">
+              <Clock size={14} />
+              <span className="tabular-nums">{format(now, 'h:mm a')}</span>
             </div>
-            <span className="hidden sm:block">{user?.name}</span>
+            <button onClick={() => setShortcutsOpen(true)} title="Keyboard shortcuts" className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-600 transition-colors">
+              <Keyboard size={16} />
+            </button>
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-full overflow-hidden bg-indigo-600 flex-shrink-0">
+                {user?.id && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={avatarUrl(user.id)} alt={user.name} className="w-full h-full object-cover" />
+                )}
+              </div>
+              <span className="hidden sm:block">{user?.name}</span>
+            </div>
           </div>
         </header>
+
+        <KeyboardShortcutsModal isOpen={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
 
         <div className="flex-1 flex overflow-hidden">
           {/* Products */}
