@@ -9,14 +9,13 @@ import { Plus, Pencil, Trash2, Archive, ArchiveRestore, Key, LayoutList, LayoutG
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import { format } from 'date-fns';
+import { avatarUrl } from '@/lib/avatar';
 
 const ROLE_META: Record<string, { label: string; classes: string; icon: typeof ShieldCheck; avatar: string }> = {
   ADMIN: { label: 'Admin', classes: 'bg-red-100 text-red-700', icon: ShieldCheck, avatar: 'bg-red-500' },
   EMPLOYEE: { label: 'Employee', classes: 'bg-blue-100 text-blue-700', icon: UserCog, avatar: 'bg-blue-500' },
   CASHIER: { label: 'Cashier', classes: 'bg-green-100 text-green-700', icon: Wallet, avatar: 'bg-green-500' },
 };
-
-const avatarUrl = (seed: string) => `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(seed)}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`;
 
 function Avatar({ seed, archived, size = 36 }: { seed: string; archived: boolean; size?: number }) {
   return (
