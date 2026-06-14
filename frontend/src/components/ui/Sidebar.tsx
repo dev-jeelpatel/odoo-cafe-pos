@@ -9,6 +9,7 @@ import {
   Clock, Shield, ReceiptText, PanelLeftClose, PanelLeftOpen, Smartphone,
 } from 'lucide-react';
 import clsx from 'clsx';
+import { avatarUrl } from '@/lib/avatar';
 
 const groups: { label: string; links: { href: string; label: string; icon: any; roles: string[]; newTab?: boolean }[] }[] = [
   {
@@ -149,8 +150,11 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         {/* User */}
         <div className={clsx('p-3 border-t border-gray-800', collapsed && 'flex flex-col items-center gap-2')}>
           <div className={clsx('flex items-center gap-3 rounded-xl px-1', collapsed ? 'justify-center' : 'mb-2 px-2 py-1.5 hover:bg-gray-800/70 transition-colors')}>
-            <div className="w-9 h-9 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ring-2 ring-gray-800">
-              {user?.name[0].toUpperCase()}
+            <div className="w-9 h-9 rounded-full flex-shrink-0 ring-2 ring-gray-800 overflow-hidden bg-gradient-to-br from-indigo-500 to-purple-600">
+              {user?.id && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={avatarUrl(user.id)} alt={user.name} className="w-full h-full object-cover" />
+              )}
             </div>
             {!collapsed && (
               <div className="min-w-0">
