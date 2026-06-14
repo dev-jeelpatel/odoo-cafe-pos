@@ -57,17 +57,17 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     <>
       {isOpen && <div className="fixed inset-0 bg-black/40 z-30 lg:hidden" onClick={onClose} />}
       <aside className={clsx(
-        'fixed left-0 top-0 h-full bg-gray-900 text-white z-40 flex flex-col transition-all duration-300 border-r border-gray-800',
+        'fixed left-0 top-0 h-full bg-white text-gray-900 z-40 flex flex-col transition-all duration-300 border-r border-gray-200 shadow-sm',
         isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
         collapsed ? 'w-20' : 'w-64'
       )}>
         {/* Logo */}
-        <div className={clsx('flex items-center p-4 border-b border-gray-800 h-[57px]', collapsed ? 'justify-center' : 'justify-between')}>
+        <div className={clsx('flex items-center p-4 border-b border-gray-200 h-[57px]', collapsed ? 'justify-center' : 'justify-between')}>
           <div className="flex items-center gap-2 min-w-0">
-            <div className="bg-gradient-to-br from-indigo-500 to-purple-600 p-1.5 rounded-lg shadow-lg shadow-indigo-900/40 flex-shrink-0"><Coffee size={20} /></div>
+            <div className="bg-gradient-to-br from-indigo-500 to-purple-600 p-1.5 rounded-lg shadow-lg shadow-indigo-900/20 flex-shrink-0 text-white"><Coffee size={20} /></div>
             {!collapsed && <span className="font-bold text-lg truncate">Cafe POS</span>}
           </div>
-          <button onClick={onClose} className="lg:hidden p-1 hover:bg-gray-800 rounded"><X size={18} /></button>
+          <button onClick={onClose} className="lg:hidden p-1 hover:bg-gray-100 rounded"><X size={18} /></button>
         </div>
 
         {/* Nav */}
@@ -78,7 +78,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             return (
               <div key={group.label} className="mb-4">
                 {!collapsed && (
-                  <p className="px-3 mb-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-500">{group.label}</p>
+                  <p className="px-3 mb-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-400">{group.label}</p>
                 )}
                 <div className="space-y-0.5">
                   {visible.map(({ href, label, icon: Icon, newTab }) => {
@@ -87,8 +87,8 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                       'group relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150',
                       collapsed && 'justify-center px-0',
                       active
-                        ? 'bg-gradient-to-r from-indigo-600 to-indigo-500 text-white shadow-md shadow-indigo-900/30'
-                        : 'text-gray-400 hover:bg-gray-800/70 hover:text-white'
+                        ? 'bg-gradient-to-r from-indigo-600 to-indigo-500 text-white shadow-md shadow-indigo-200'
+                        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                     );
                     const inner = <>
                       {active && !collapsed && <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-1 rounded-r-full bg-white/80" />}
@@ -113,14 +113,14 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
           {/* Customer Menu — external */}
           <div className="mb-4">
-            {!collapsed && <p className="px-3 mb-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-500">Customer</p>}
+            {!collapsed && <p className="px-3 mb-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-400">Customer</p>}
             <a
               href="/menu"
               target="_blank"
               rel="noopener noreferrer"
               title={collapsed ? 'Customer Menu' : undefined}
               className={clsx(
-                'group relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 text-gray-400 hover:bg-gray-800/70 hover:text-white',
+                'group relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 text-gray-600 hover:bg-gray-100 hover:text-gray-900',
                 collapsed && 'justify-center px-0'
               )}
             >
@@ -136,10 +136,10 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         </nav>
 
         {/* Collapse toggle */}
-        <div className="hidden lg:block border-t border-gray-800 p-2.5">
+        <div className="hidden lg:block border-t border-gray-200 p-2.5">
           <button
             onClick={toggle}
-            className={clsx('flex items-center gap-3 w-full px-3 py-2 rounded-xl text-sm font-medium text-gray-400 hover:bg-gray-800/70 hover:text-white transition-colors', collapsed && 'justify-center px-0')}
+            className={clsx('flex items-center gap-3 w-full px-3 py-2 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors', collapsed && 'justify-center px-0')}
             title={collapsed ? 'Expand sidebar' : undefined}
           >
             {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
@@ -148,9 +148,9 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         </div>
 
         {/* User */}
-        <div className={clsx('p-3 border-t border-gray-800', collapsed && 'flex flex-col items-center gap-2')}>
-          <div className={clsx('flex items-center gap-3 rounded-xl px-1', collapsed ? 'justify-center' : 'mb-2 px-2 py-1.5 hover:bg-gray-800/70 transition-colors')}>
-            <div className="w-9 h-9 rounded-full flex-shrink-0 ring-2 ring-gray-800 overflow-hidden bg-gradient-to-br from-indigo-500 to-purple-600">
+        <div className={clsx('p-3 border-t border-gray-200', collapsed && 'flex flex-col items-center gap-2')}>
+          <div className={clsx('flex items-center gap-3 rounded-xl px-1', collapsed ? 'justify-center' : 'mb-2 px-2 py-1.5 hover:bg-gray-100 transition-colors')}>
+            <div className="w-9 h-9 rounded-full flex-shrink-0 ring-2 ring-gray-100 overflow-hidden bg-gradient-to-br from-indigo-500 to-purple-600">
               {user?.id && (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={avatarUrl(user.id)} alt={user.name} className="w-full h-full object-cover" />
@@ -159,7 +159,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             {!collapsed && (
               <div className="min-w-0">
                 <p className="text-sm font-medium truncate">{user?.name}</p>
-                <p className="text-xs text-gray-400 capitalize truncate">{user?.role.toLowerCase()}</p>
+                <p className="text-xs text-gray-500 capitalize truncate">{user?.role.toLowerCase()}</p>
               </div>
             )}
           </div>
@@ -167,7 +167,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             onClick={logout}
             title={collapsed ? 'Sign out' : undefined}
             className={clsx(
-              'group relative flex items-center gap-2 text-sm text-gray-400 hover:text-white hover:bg-red-500/10 transition-colors rounded-lg px-2 py-1.5',
+              'group relative flex items-center gap-2 text-sm text-gray-500 hover:text-red-600 hover:bg-red-50 transition-colors rounded-lg px-2 py-1.5',
               collapsed ? 'justify-center w-9 h-9' : 'w-full'
             )}
           >
