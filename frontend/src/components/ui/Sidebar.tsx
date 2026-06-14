@@ -17,7 +17,7 @@ const groups: { label: string; links: { href: string; label: string; icon: any; 
     links: [
       { href: '/pos', label: 'POS Terminal', icon: ShoppingCart, roles: ['ADMIN', 'EMPLOYEE'] },
       { href: '/orders', label: 'Orders', icon: LayoutGrid, roles: ['ADMIN', 'EMPLOYEE'] },
-      { href: '/kds', label: 'Kitchen Display', icon: ChefHat, roles: ['ADMIN', 'EMPLOYEE'], newTab: true },
+      { href: '/kds', label: 'Kitchen Display', icon: ChefHat, roles: ['ADMIN', 'EMPLOYEE'] },
       { href: '/customers', label: 'Customers', icon: Users, roles: ['ADMIN', 'EMPLOYEE'] },
       { href: '/sessions', label: 'Sessions', icon: Clock, roles: ['ADMIN', 'EMPLOYEE'] },
     ],
