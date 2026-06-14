@@ -54,6 +54,7 @@ enum PaymentMethod {
   CASH
   UPI
   CARD
+  TEST
 }
 
 enum PaymentStatus {
