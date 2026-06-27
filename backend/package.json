@@ -12,6 +12,7 @@
     "db:push": "prisma db push",
     "db:seed": "ts-node src/seed.ts",
     "db:seed:inventory": "ts-node src/inventorySeed.ts",
+    "db:seed:inventory:update": "ts-node src/inventoryUpdateSeed.ts",
     "db:demo": "ts-node src/seedDemo.ts",
     "db:studio": "prisma studio"
   },
