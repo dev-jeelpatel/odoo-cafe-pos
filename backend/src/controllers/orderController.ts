@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
 import { generateOrderNumber, generateReceiptNumber } from '../utils/orderNumber';
+import { deductForOrder, restoreForOrder } from '../services/inventoryService';
 
 const ORDER_INCLUDE = {
   customer: true,
@@ -240,6 +241,12 @@ export const processPayment = async (req: any, res: Response): Promise<void> => 
 
     req.io?.emit('order:paid', result);
     if (order.tableId) req.io?.emit('table:status-update', { tableId: order.tableId, status: 'AVAILABLE' });
+
+    // Deduct inventory stock based on recipe mappings (non-blocking — payment always succeeds)
+    deductForOrder(order.id, req.user.id).catch((e: any) =>
+      console.error('[Inventory] deductForOrder failed for order', order.id, e?.message)
+    );
+
     res.json({ ...result, receiptNumber });
   } catch (err: any) { res.status(400).json({ message: err.message }); }
 };
@@ -252,6 +259,14 @@ export const cancelOrder = async (req: any, res: Response): Promise<void> => {
   });
   if (order.tableId) await prisma.table.update({ where: { id: order.tableId }, data: { status: 'AVAILABLE' } });
   req.io?.emit('order:updated', order);
+
+  // Restore inventory if the order was already paid (cancelled after payment)
+  if (order.isPaid) {
+    restoreForOrder(order.id, req.user.id).catch((e: any) =>
+      console.error('[Inventory] restoreForOrder failed for order', order.id, e?.message)
+    );
+  }
+
   res.json(order);
 };
 
