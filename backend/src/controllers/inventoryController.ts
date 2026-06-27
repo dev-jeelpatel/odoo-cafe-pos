@@ -4,28 +4,23 @@ import { AdjustmentStatus, StockMovementType } from '@prisma/client';
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────
 export async function getDashboard(req: Request, res: Response) {
-  const [totalItems, lowStockItems, outOfStockItems, recentMovements] = await Promise.all([
+  const [totalItems, outOfStockItems, recentMovements, allItems] = await Promise.all([
     prisma.inventoryItem.count({ where: { active: true } }),
-    prisma.inventoryItem.count({ where: { active: true, currentStock: { lte: prisma.inventoryItem.fields.minStock as any } } }),
     prisma.inventoryItem.count({ where: { active: true, currentStock: { lte: 0 } } }),
     prisma.stockMovement.findMany({
       take: 20,
       orderBy: { createdAt: 'desc' },
       include: { inventoryItem: true, createdByUser: { select: { name: true } } },
     }),
+    prisma.inventoryItem.findMany({
+      where: { active: true },
+      include: { category: true },
+      orderBy: { currentStock: 'asc' },
+    }),
   ]);
 
-  // Low stock list (items where currentStock <= minStock)
-  const lowStockList = await prisma.inventoryItem.findMany({
-    where: { active: true },
-    include: { category: true },
-    orderBy: { currentStock: 'asc' },
-  });
-  const lowStock = lowStockList.filter(i => i.currentStock <= i.minStock);
-
-  // Total inventory value
-  const items = await prisma.inventoryItem.findMany({ where: { active: true } });
-  const totalValue = items.reduce((sum, i) => sum + i.currentStock * i.unitCost, 0);
+  const lowStock = allItems.filter(i => i.currentStock <= i.minStock);
+  const totalValue = allItems.reduce((sum, i) => sum + i.currentStock * i.unitCost, 0);
 
   res.json({
     totalItems,
@@ -110,12 +105,30 @@ export async function createItem(req: Request, res: Response) {
 }
 
 export async function updateItem(req: Request, res: Response) {
-  const item = await prisma.inventoryItem.update({
-    where: { id: req.params.id },
-    data: req.body,
-    include: { category: true, supplier: true },
-  });
-  res.json(item);
+  try {
+    const { name, sku, categoryId, unit, currentStock, minStock, maxStock, unitCost, supplierId, shelfLifeDays, storageLocation, active } = req.body;
+    const item = await prisma.inventoryItem.update({
+      where: { id: req.params.id },
+      data: {
+        name,
+        sku,
+        categoryId,
+        unit,
+        currentStock: currentStock !== undefined ? parseFloat(String(currentStock)) : undefined,
+        minStock: minStock !== undefined ? parseFloat(String(minStock)) : undefined,
+        maxStock: maxStock !== null && maxStock !== '' && maxStock !== undefined ? parseFloat(String(maxStock)) : null,
+        unitCost: unitCost !== undefined ? parseFloat(String(unitCost)) : undefined,
+        supplierId: supplierId || null,
+        shelfLifeDays: shelfLifeDays !== undefined ? parseInt(String(shelfLifeDays)) : undefined,
+        storageLocation,
+        active,
+      },
+      include: { category: true, supplier: true },
+    });
+    res.json(item);
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
+  }
 }
 
 export async function deleteItem(req: Request, res: Response) {

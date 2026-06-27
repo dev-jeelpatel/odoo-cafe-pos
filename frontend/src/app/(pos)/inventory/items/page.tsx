@@ -17,7 +17,18 @@ function StatusBadge({ item }: { item: any }) {
 }
 
 function ItemModal({ item, categories, suppliers, onClose, onSaved }: any) {
-  const [form, setForm] = useState(item ?? { name: '', sku: '', categoryId: '', unit: 'KG', currentStock: 0, minStock: 0, maxStock: '', unitCost: 0, supplierId: '', storageLocation: '' });
+  const [form, setForm] = useState(item ? {
+    name: item.name ?? '',
+    sku: item.sku ?? '',
+    categoryId: item.categoryId ?? '',
+    unit: item.unit ?? 'KG',
+    currentStock: item.currentStock ?? 0,
+    minStock: item.minStock ?? 0,
+    maxStock: item.maxStock ?? '',
+    unitCost: item.unitCost ?? 0,
+    supplierId: item.supplierId ?? '',
+    storageLocation: item.storageLocation ?? '',
+  } : { name: '', sku: '', categoryId: '', unit: 'KG', currentStock: 0, minStock: 0, maxStock: '', unitCost: 0, supplierId: '', storageLocation: '' });
   const [saving, setSaving] = useState(false);
 
   const save = async () => {

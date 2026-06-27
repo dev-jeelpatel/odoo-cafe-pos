@@ -84,7 +84,14 @@ export default function RecipesPage() {
 
   const recipeMap = Object.fromEntries((recipes ?? []).map((r: any) => [r.productId, r]));
 
-  const filtered = (products ?? []).filter((p: any) => p.name.toLowerCase().includes(search.toLowerCase()));
+  const filtered = (products ?? [])
+    .filter((p: any) => p.name.toLowerCase().includes(search.toLowerCase()))
+    .sort((a: any, b: any) => {
+      const catA = a.category?.name ?? '';
+      const catB = b.category?.name ?? '';
+      if (catA !== catB) return catA.localeCompare(catB);
+      return a.name.localeCompare(b.name);
+    });
 
   const refresh = () => { qc.invalidateQueries({ queryKey: ['recipes'] }); setEditing(null); };
 
@@ -93,7 +100,17 @@ export default function RecipesPage() {
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className={clsx('flex-1 flex flex-col min-w-0 transition-all duration-300', collapsed ? 'lg:ml-20' : 'lg:ml-64')}>
         <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-          <div><h1 className="text-xl font-bold text-gray-900">Recipe Management</h1><p className="text-sm text-gray-500">Link products to ingredients for automatic stock deduction</p></div>
+          <div>
+            <h1 className="text-xl font-bold text-gray-900">Recipe Management</h1>
+            <p className="text-sm text-gray-500">
+              Link products to ingredients for automatic stock deduction
+              {products && (
+                <span className="ml-2 text-indigo-600 font-medium">
+                  · {(products as any[]).filter(p => recipeMap[p.id]).length}/{(products as any[]).length} recipes set
+                </span>
+              )}
+            </p>
+          </div>
         </header>
         <div className="bg-white border-b border-gray-100 px-6 py-3">
           <input className="input w-64 text-sm" placeholder="Search products..." value={search} onChange={e => setSearch(e.target.value)} />
