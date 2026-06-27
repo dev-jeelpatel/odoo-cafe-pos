@@ -7,6 +7,7 @@ import {
   Coffee, ShoppingCart, Users, LayoutGrid, Tag, Percent, CreditCard,
   BarChart3, LogOut, ChefHat, Layers, TicketPercent, Building2, X,
   Clock, Shield, ReceiptText, PanelLeftClose, PanelLeftOpen, Smartphone,
+  Package, TrendingDown,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { avatarUrl } from '@/lib/avatar';
@@ -40,6 +41,17 @@ const groups: { label: string; links: { href: string; label: string; icon: any; 
       { href: '/reports', label: 'Reports', icon: BarChart3, roles: ['ADMIN'] },
       { href: '/receipts', label: 'Receipts', icon: ReceiptText, roles: ['ADMIN', 'EMPLOYEE'] },
       { href: '/audit-logs', label: 'Audit Logs', icon: Shield, roles: ['ADMIN'] },
+    ],
+  },
+  {
+    label: 'Inventory',
+    links: [
+      { href: '/inventory', label: 'Inventory Dashboard', icon: Package, roles: ['ADMIN', 'EMPLOYEE'] },
+      { href: '/inventory/items', label: 'Stock Items', icon: Package, roles: ['ADMIN', 'EMPLOYEE'] },
+      { href: '/inventory/suppliers', label: 'Suppliers', icon: Building2, roles: ['ADMIN'] },
+      { href: '/inventory/purchase-orders', label: 'Purchase Orders', icon: ReceiptText, roles: ['ADMIN'] },
+      { href: '/inventory/recipes', label: 'Recipes', icon: ChefHat, roles: ['ADMIN'] },
+      { href: '/wastage', label: 'Wastage', icon: TrendingDown, roles: ['ADMIN', 'EMPLOYEE'] },
     ],
   },
 ];

@@ -13,6 +13,11 @@ import orderRoutes from './orders';
 import reportRoutes from './reports';
 import receiptEmailRoutes from './receiptEmail';
 import publicRoutes from './public';
+import inventoryRoutes from './inventory';
+import supplierRoutes from './suppliers';
+import purchaseOrderRoutes, { grnRouter } from './purchaseOrders';
+import recipeRoutes from './recipes';
+import wastageRoutes from './wastage';
 
 const router = Router();
 
@@ -30,5 +35,11 @@ router.use('/orders', orderRoutes);
 router.use('/reports', reportRoutes);
 router.use('/receipt-email', receiptEmailRoutes);
 router.use('/public', publicRoutes);
+router.use('/inventory', inventoryRoutes);
+router.use('/suppliers', supplierRoutes);
+router.use('/purchase-orders', purchaseOrderRoutes);
+router.use('/grn', grnRouter);
+router.use('/recipes', recipeRoutes);
+router.use('/wastage', wastageRoutes);
 
 export default router;

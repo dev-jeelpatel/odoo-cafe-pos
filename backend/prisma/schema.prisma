@@ -91,6 +91,83 @@ enum AuditAction {
   SESSION_CLOSE
 }
 
+// ─── Inventory Enums ──────────────────────────────────────────────────────────
+
+enum InventoryUnit {
+  G
+  KG
+  ML
+  L
+  PCS
+  DOZEN
+}
+
+enum StockMovementType {
+  ORDER_DEDUCTION
+  ORDER_RESTORE
+  PURCHASE
+  WASTAGE
+  ADJUSTMENT
+}
+
+enum PurchaseOrderStatus {
+  DRAFT
+  SENT
+  PARTIAL
+  RECEIVED
+  CANCELLED
+}
+
+enum BatchStatus {
+  ACTIVE
+  EXPIRED
+  CONSUMED
+}
+
+enum AdjustmentType {
+  ADD
+  REMOVE
+  SET
+}
+
+enum AdjustmentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum WastageStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum WastageShift {
+  MORNING
+  AFTERNOON
+  EVENING
+}
+
+enum NotificationPriority {
+  CRITICAL
+  HIGH
+  MEDIUM
+  INFO
+}
+
+enum NotificationType {
+  LOW_STOCK
+  OUT_OF_STOCK
+  EXPIRING_SOON
+  EXPIRED
+  HIGH_WASTAGE
+  PO_PENDING
+  GRN_RECEIVED
+  MANUAL_ADJUSTMENT
+  WASTAGE_APPROVED
+  REORDER_LEVEL
+}
+
 // ─── Models ──────────────────────────────────────────────────────────────────
 
 model User {
@@ -106,6 +183,16 @@ model User {
   orders     Order[]
   sessions   Session[]
   auditLogs  AuditLog[]
+
+  // Inventory relations
+  purchaseOrdersCreated PurchaseOrder[]    @relation("POCreatedBy")
+  grnsReceived          GoodsReceivedNote[] @relation("GRNReceivedBy")
+  stockMovements        StockMovement[]    @relation("MovementCreatedBy")
+  adjustmentsRequested  StockAdjustment[]  @relation("AdjRequestedBy")
+  adjustmentsApproved   StockAdjustment[]  @relation("AdjApprovedBy")
+  wastageReported       WastageEntry[]     @relation("WastageReportedBy")
+  wastageApproved       WastageEntry[]     @relation("WastageApprovedBy")
+  invNotifications      InvNotification[]  @relation("InvNotifUser")
 
   @@index([email])
 }
@@ -160,6 +247,7 @@ model Product {
   category       Category    @relation(fields: [categoryId], references: [id])
   orderItems     OrderItem[]
   promotions     Promotion[] @relation("PromotionProduct")
+  recipe         Recipe?
 
   @@index([name])
   @@index([categoryId])
@@ -337,4 +425,286 @@ model AuditLog {
   createdAt  DateTime    @default(now())
 
   user User? @relation(fields: [userId], references: [id])
+}
+
+// ─── Inventory Models ─────────────────────────────────────────────────────────
+
+model InventoryCategory {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String   @default("")
+  color       String   @default("#6366f1")
+  icon        String   @default("Package")
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  items InventoryItem[]
+}
+
+model Supplier {
+  id            String   @id @default(cuid())
+  name          String
+  contactPerson String   @default("")
+  phone         String   @default("")
+  email         String   @default("")
+  address       String   @default("")
+  gstNumber     String   @default("")
+  paymentTerms  String   @default("")
+  active        Boolean  @default(true)
+  notes         String   @default("")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  items          InventoryItem[]
+  purchaseOrders PurchaseOrder[]
+  batches        InventoryBatch[]
+}
+
+model InventoryItem {
+  id              String        @id @default(cuid())
+  name            String
+  sku             String        @unique
+  categoryId      String
+  unit            InventoryUnit @default(PCS)
+  currentStock    Float         @default(0)
+  minStock        Float         @default(0)
+  maxStock        Float?
+  unitCost        Float         @default(0)
+  supplierId      String?
+  shelfLifeDays   Int?
+  storageLocation String        @default("")
+  active          Boolean       @default(true)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  category        InventoryCategory  @relation(fields: [categoryId], references: [id])
+  supplier        Supplier?          @relation(fields: [supplierId], references: [id])
+  batches         InventoryBatch[]
+  movements       StockMovement[]
+  adjustments     StockAdjustment[]
+  wastageEntries  WastageEntry[]
+  recipeItems     RecipeIngredient[]
+  poItems         PurchaseOrderItem[]
+  grnItems        GRNItem[]
+
+  @@index([categoryId])
+  @@index([supplierId])
+  @@index([active])
+}
+
+model InventoryBatch {
+  id            String      @id @default(cuid())
+  inventoryItemId String
+  batchNumber   String
+  quantity      Float
+  purchaseDate  DateTime    @default(now())
+  expiryDate    DateTime?
+  supplierId    String?
+  unitCost      Float       @default(0)
+  status        BatchStatus @default(ACTIVE)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id])
+  supplier      Supplier?     @relation(fields: [supplierId], references: [id])
+
+  @@index([inventoryItemId])
+  @@index([expiryDate])
+  @@index([status])
+}
+
+model PurchaseOrder {
+  id           String              @id @default(cuid())
+  poNumber     String              @unique
+  supplierId   String
+  status       PurchaseOrderStatus @default(DRAFT)
+  expectedDate DateTime?
+  totalAmount  Float               @default(0)
+  notes        String              @default("")
+  createdBy    String
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  supplier  Supplier            @relation(fields: [supplierId], references: [id])
+  createdByUser User            @relation("POCreatedBy", fields: [createdBy], references: [id])
+  items     PurchaseOrderItem[]
+  grns      GoodsReceivedNote[]
+
+  @@index([supplierId])
+  @@index([status])
+}
+
+model PurchaseOrderItem {
+  id              String @id @default(cuid())
+  poId            String
+  inventoryItemId String
+  quantity        Float
+  unitPrice       Float
+  totalPrice      Float
+
+  purchaseOrder PurchaseOrder @relation(fields: [poId], references: [id], onDelete: Cascade)
+  inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id])
+
+  @@index([poId])
+}
+
+model GoodsReceivedNote {
+  id               String   @id @default(cuid())
+  grnNumber        String   @unique
+  poId             String
+  receivedDate     DateTime @default(now())
+  receivedBy       String
+  notes            String   @default("")
+  discrepancyNotes String   @default("")
+  createdAt        DateTime @default(now())
+
+  purchaseOrder   PurchaseOrder @relation(fields: [poId], references: [id])
+  receivedByUser  User          @relation("GRNReceivedBy", fields: [receivedBy], references: [id])
+  items           GRNItem[]
+
+  @@index([poId])
+}
+
+model GRNItem {
+  id              String   @id @default(cuid())
+  grnId           String
+  inventoryItemId String
+  orderedQty      Float
+  receivedQty     Float
+  unitPrice       Float
+  batchNumber     String   @default("")
+  expiryDate      DateTime?
+
+  grn           GoodsReceivedNote @relation(fields: [grnId], references: [id], onDelete: Cascade)
+  inventoryItem InventoryItem     @relation(fields: [inventoryItemId], references: [id])
+
+  @@index([grnId])
+}
+
+model StockMovement {
+  id              String            @id @default(cuid())
+  inventoryItemId String
+  type            StockMovementType
+  quantity        Float
+  stockBefore     Float
+  stockAfter      Float
+  referenceType   String?
+  referenceId     String?
+  createdBy       String
+  createdAt       DateTime          @default(now())
+
+  inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id])
+  createdByUser User          @relation("MovementCreatedBy", fields: [createdBy], references: [id])
+
+  @@index([inventoryItemId])
+  @@index([referenceId])
+  @@index([createdAt])
+}
+
+model StockAdjustment {
+  id              String           @id @default(cuid())
+  inventoryItemId String
+  type            AdjustmentType
+  quantity        Float
+  reason          String
+  referenceNumber String           @default("")
+  notes           String           @default("")
+  status          AdjustmentStatus @default(PENDING)
+  requestedBy     String
+  approvedBy      String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id])
+  requestedByUser User        @relation("AdjRequestedBy", fields: [requestedBy], references: [id])
+  approvedByUser  User?       @relation("AdjApprovedBy", fields: [approvedBy], references: [id])
+
+  @@index([inventoryItemId])
+  @@index([status])
+}
+
+model Recipe {
+  id        String   @id @default(cuid())
+  productId String   @unique
+  name      String
+  yield     Float    @default(1)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product     Product            @relation(fields: [productId], references: [id])
+  ingredients RecipeIngredient[]
+}
+
+model RecipeIngredient {
+  id              String @id @default(cuid())
+  recipeId        String
+  inventoryItemId String
+  quantity        Float
+  unit            String
+  notes           String @default("")
+
+  recipe        Recipe        @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id])
+
+  @@index([recipeId])
+}
+
+model WastageReason {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String   @default("")
+  category    String   @default("")
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  wastageEntries WastageEntry[]
+}
+
+model WastageEntry {
+  id              String        @id @default(cuid())
+  inventoryItemId String
+  date            DateTime      @default(now())
+  quantity        Float
+  unit            String
+  reasonId        String
+  cost            Float         @default(0)
+  notes           String        @default("")
+  imageUrl        String?
+  reportedBy      String
+  shift           WastageShift  @default(MORNING)
+  status          WastageStatus @default(PENDING)
+  approvedBy      String?
+  approvedAt      DateTime?
+  rejectionReason String        @default("")
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  inventoryItem  InventoryItem  @relation(fields: [inventoryItemId], references: [id])
+  reason         WastageReason  @relation(fields: [reasonId], references: [id])
+  reportedByUser User           @relation("WastageReportedBy", fields: [reportedBy], references: [id])
+  approvedByUser User?          @relation("WastageApprovedBy", fields: [approvedBy], references: [id])
+
+  @@index([inventoryItemId])
+  @@index([status])
+  @@index([date])
+}
+
+model InvNotification {
+  id                String               @id @default(cuid())
+  type              NotificationType
+  title             String
+  message           String
+  priority          NotificationPriority @default(INFO)
+  relatedEntityType String?
+  relatedEntityId   String?
+  userId            String
+  read              Boolean              @default(false)
+  createdAt         DateTime             @default(now())
+
+  user User @relation("InvNotifUser", fields: [userId], references: [id])
+
+  @@index([userId, read])
+  @@index([createdAt])
 }

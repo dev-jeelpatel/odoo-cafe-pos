@@ -159,6 +159,38 @@ async function main() {
   await prisma.coupon.upsert({ where: { code: 'WELCOME10' }, update: {}, create: { code: 'WELCOME10', discountType: 'PERCENTAGE', discountValue: 10, active: true } });
   await prisma.coupon.upsert({ where: { code: 'FLAT50' }, update: {}, create: { code: 'FLAT50', discountType: 'FIXED', discountValue: 50, active: true } });
 
+  // Inventory categories
+  const invCats = [
+    { name: 'Dairy', color: '#3b82f6', icon: 'Milk' },
+    { name: 'Vegetables & Produce', color: '#22c55e', icon: 'Leaf' },
+    { name: 'Grains & Flour', color: '#f59e0b', icon: 'Wheat' },
+    { name: 'Beverages & Coffee', color: '#6366f1', icon: 'Coffee' },
+    { name: 'Spices & Condiments', color: '#ef4444', icon: 'Flame' },
+    { name: 'Oils & Fats', color: '#f97316', icon: 'Droplets' },
+    { name: 'Packaging', color: '#64748b', icon: 'Package' },
+    { name: 'Frozen & Ice Cream', color: '#06b6d4', icon: 'Snowflake' },
+    { name: 'Bakery & Bread', color: '#b45309', icon: 'ChefHat' },
+  ];
+  for (const c of invCats) {
+    await prisma.inventoryCategory.upsert({ where: { name: c.name }, create: c, update: {} });
+  }
+
+  // Wastage reasons
+  const wastageReasons = [
+    { name: 'Kitchen Wastage', description: 'Wastage during cooking/preparation', category: 'Kitchen' },
+    { name: 'Expired Product', description: 'Product past best-before or expiry date', category: 'Storage' },
+    { name: 'Damaged in Storage', description: 'Breakage, spillage or pest damage in storage', category: 'Storage' },
+    { name: 'Overproduction', description: 'Prepared more than what was sold', category: 'Kitchen' },
+    { name: 'Quality Rejection', description: 'Failed quality check on delivery or prep', category: 'Quality' },
+    { name: 'Customer Return', description: 'Dish returned by customer', category: 'Service' },
+    { name: 'Spillage / Accident', description: 'Accidental drop or spill', category: 'Accident' },
+    { name: 'Cooking Error', description: 'Burnt, under or overcooked dish', category: 'Kitchen' },
+    { name: 'Other', description: 'Any unlisted reason', category: 'General' },
+  ];
+  for (const r of wastageReasons) {
+    await prisma.wastageReason.upsert({ where: { name: r.name }, create: r, update: {} });
+  }
+
   console.log('Seeding complete!');
 }
 
