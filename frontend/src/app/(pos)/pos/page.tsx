@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import Sidebar from '@/components/ui/Sidebar';
 import ProductGrid from '@/components/pos/ProductGrid';
-import CartPanel from '@/components/pos/CartPanel';
+import { SkeletonBox } from '@/components/ui/Skeleton';
 import { Menu, Clock, Keyboard } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
@@ -12,7 +12,17 @@ import { avatarUrl } from '@/lib/avatar';
 import { format } from 'date-fns';
 import clsx from 'clsx';
 
-// Loaded only when the user clicks the keyboard icon — not part of the critical bundle
+// Lazy-loaded — not needed until the user interacts with the cart or keyboard shortcut
+const CartPanel = dynamic(() => import('@/components/pos/CartPanel'), {
+  ssr: false,
+  loading: () => (
+    <div className="h-full p-4 space-y-3">
+      {Array.from({ length: 5 }).map((_, i) => (
+        <SkeletonBox key={i} className={`h-14 ${i === 0 ? 'w-full' : i === 4 ? 'w-1/2' : 'w-4/5'}`} />
+      ))}
+    </div>
+  ),
+});
 const KeyboardShortcutsModal = dynamic(() => import('@/components/pos/KeyboardShortcutsModal'), { ssr: false });
 
 export default function POSPage() {
@@ -56,7 +66,7 @@ export default function POSPage() {
               <div className="w-7 h-7 rounded-full overflow-hidden bg-indigo-600 flex-shrink-0">
                 {user?.id && (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={avatarUrl(user.id, user.name)} alt={user.name} className="w-full h-full object-cover" />
+                  <img src={avatarUrl(user.id)} alt={user.name} className="w-full h-full object-cover" />
                 )}
               </div>
               <span className="hidden sm:block">{user?.name}</span>
@@ -69,12 +79,9 @@ export default function POSPage() {
         )}
 
         <div className="flex-1 flex overflow-hidden">
-          {/* Products */}
           <div className="flex-1 overflow-hidden p-3 lg:p-4">
             <ProductGrid />
           </div>
-
-          {/* Cart */}
           <div className="w-72 lg:w-80 xl:w-96 border-l border-gray-200 flex-shrink-0 overflow-hidden">
             <CartPanel />
           </div>

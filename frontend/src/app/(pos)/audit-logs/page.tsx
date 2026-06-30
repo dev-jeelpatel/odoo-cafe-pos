@@ -3,6 +3,7 @@ import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { AuditLog } from '@/types';
 import api from '@/lib/api';
+import { SkeletonTable } from '@/components/ui/Skeleton';
 import PageLayout from '@/components/ui/PageLayout';
 import { format, isToday } from 'date-fns';
 import clsx from 'clsx';
@@ -97,7 +98,9 @@ export default function AuditLogsPage() {
       )}
 
       {isLoading ? (
-        <p className="text-center text-gray-400 py-12">Loading...</p>
+        <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+          <table className="w-full"><tbody><SkeletonTable rows={10} cols={5} /></tbody></table>
+        </div>
       ) : filtered.length === 0 ? (
         <div className="text-center py-16 text-gray-400">
           <History size={40} className="mx-auto mb-3 opacity-30" />

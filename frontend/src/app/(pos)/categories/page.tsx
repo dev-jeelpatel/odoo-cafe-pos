@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Category, Product } from '@/types';
 import api from '@/lib/api';
+import { SkeletonCardGrid } from '@/components/ui/Skeleton';
 import PageLayout from '@/components/ui/PageLayout';
 import Modal from '@/components/ui/Modal';
 import { Plus, Pencil, Trash2, LayoutList, LayoutGrid, Search, Tag, Package, Check } from 'lucide-react';
@@ -108,7 +109,7 @@ export default function CategoriesPage() {
         </div>
       </div>
 
-      {isLoading ? <p className="text-center text-gray-400 py-12">Loading...</p> :
+      {isLoading ? <SkeletonCardGrid count={8} /> :
        filtered.length === 0 ? (
         <div className="text-center py-16 text-gray-400">
           <Tag size={40} className="mx-auto mb-3 opacity-30" />

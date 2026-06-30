@@ -8,6 +8,7 @@ import clsx from 'clsx';
 import { Package, AlertTriangle, XCircle, TrendingUp, ArrowRight, Clock } from 'lucide-react';
 import Link from 'next/link';
 import { format } from 'date-fns';
+import { SkeletonLine, SkeletonStatCard } from '@/components/ui/Skeleton';
 
 interface DashboardData {
   totalItems: number;
@@ -88,7 +89,7 @@ export default function InventoryDashboard() {
                 <Link href="/inventory/items?status=LOW" className="text-xs text-indigo-600 hover:underline flex items-center gap-1">View all <ArrowRight size={12} /></Link>
               </div>
               {isLoading ? (
-                <div className="p-6 text-center text-gray-400 text-sm">Loading...</div>
+                <div className="p-4 space-y-3">{Array.from({length:5}).map((_,i)=><SkeletonLine key={i} width="w-full" height="h-10"/>)}</div>
               ) : data?.lowStockList.length === 0 ? (
                 <div className="p-6 text-center text-gray-400 text-sm">All stock levels are healthy</div>
               ) : (
@@ -119,7 +120,7 @@ export default function InventoryDashboard() {
                 <h2 className="font-semibold text-gray-900">Recent Stock Activity</h2>
               </div>
               {isLoading ? (
-                <div className="p-6 text-center text-gray-400 text-sm">Loading...</div>
+                <div className="p-4 space-y-3">{Array.from({length:5}).map((_,i)=><SkeletonLine key={i} width="w-full" height="h-10"/>)}</div>
               ) : (
                 <div className="divide-y divide-gray-50">
                   {data?.recentMovements.slice(0, 8).map(mv => (

@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
 import PageLayout from '@/components/ui/PageLayout';
+import { SkeletonTable } from '@/components/ui/Skeleton';
 import { Search, Mail, ChevronDown, ChevronUp, Receipt as ReceiptIcon, IndianRupee, Calendar, Utensils, ShoppingBag, Truck, Banknote, QrCode, CreditCard } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { format, isToday } from 'date-fns';
@@ -109,7 +110,9 @@ export default function ReceiptsPage() {
       </div>
 
       {isLoading ? (
-        <p className="text-center text-gray-400 py-12">Loading paid orders...</p>
+        <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+          <table className="w-full"><tbody><SkeletonTable rows={8} cols={5} /></tbody></table>
+        </div>
       ) : filtered.length === 0 ? (
         <div className="text-center py-16 text-gray-400">
           <ReceiptIcon size={40} className="mx-auto mb-3 opacity-30" />
