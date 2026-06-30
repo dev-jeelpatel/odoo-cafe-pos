@@ -1,5 +1,5 @@
 'use client';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, memo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Product, Category } from '@/types';
 import api from '@/lib/api';
@@ -8,16 +8,44 @@ import { getProductEmoji } from '@/lib/productVisuals';
 import { Search, Plus, Minus, Sparkles, Star, X, PackageSearch } from 'lucide-react';
 
 const FAVORITES_KEY = 'pos_favorite_products';
+// Products and categories rarely change — cache aggressively to avoid blocking LCP
+const CATALOG_STALE_TIME = 10 * 60 * 1000; // 10 minutes
 
-export default function ProductGrid() {
+function ProductSkeleton() {
+  return (
+    <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden flex flex-col animate-pulse">
+      <div className="w-full aspect-[4/3] bg-gray-100" />
+      <div className="px-2.5 pt-2 pb-1">
+        <div className="h-3.5 bg-gray-200 rounded w-3/4 mb-1.5" />
+        <div className="h-2.5 bg-gray-100 rounded w-1/2" />
+      </div>
+      <div className="px-2.5 pb-2.5 mt-auto flex items-center justify-between">
+        <div className="h-3 bg-gray-200 rounded w-10" />
+        <div className="w-6 h-6 bg-gray-200 rounded-full" />
+      </div>
+    </div>
+  );
+}
+
+export default memo(function ProductGrid() {
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState('all');
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const searchRef = useRef<HTMLInputElement>(null);
   const { items, addItem, removeItem, updateQty } = useCart();
 
-  const { data: categories = [] } = useQuery<Category[]>({ queryKey: ['categories'], queryFn: () => api.get('/categories').then(r => r.data) });
-  const { data: products = [] } = useQuery<Product[]>({ queryKey: ['products'], queryFn: () => api.get('/products').then(r => r.data) });
+  const { data: categories = [], isLoading: catsLoading } = useQuery<Category[]>({
+    queryKey: ['categories'],
+    queryFn: () => api.get('/categories').then(r => r.data),
+    staleTime: CATALOG_STALE_TIME,
+  });
+  const { data: products = [], isLoading: prodsLoading } = useQuery<Product[]>({
+    queryKey: ['products'],
+    queryFn: () => api.get('/products').then(r => r.data),
+    staleTime: CATALOG_STALE_TIME,
+  });
+
+  const isLoading = catsLoading || prodsLoading;
 
   useEffect(() => {
     const saved = localStorage.getItem(FAVORITES_KEY);
@@ -99,69 +127,75 @@ export default function ProductGrid() {
 
       <div className="flex-1 overflow-y-auto">
         <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
-          {filtered.map(product => {
-            const qty = qtyOf(product.id);
-            const color = product.category?.color || '#6366f1';
-            return (
-              <div key={product.id}
-                className="relative bg-white border border-gray-200 rounded-2xl overflow-hidden text-left hover:border-indigo-300 hover:shadow-lg transition-all group flex flex-col"
-              >
-                <button
-                  onClick={(e) => { e.stopPropagation(); toggleFavorite(product.id); }}
-                  title={favorites.has(product.id) ? 'Remove from favorites' : 'Add to favorites'}
-                  className="absolute top-1.5 left-1.5 z-10 w-6 h-6 flex items-center justify-center rounded-full bg-white/80 backdrop-blur-sm shadow-sm hover:bg-white transition-colors"
-                >
-                  <Star size={13} className={favorites.has(product.id) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-400'} />
-                </button>
-                <button onClick={() => addItem(product)} className="block w-full text-left">
-                  <div className="relative w-full aspect-[4/3] flex items-center justify-center overflow-hidden" style={{ background: `linear-gradient(135deg, ${color}22, ${color}08)` }}>
-                    {product.imageUrl ? (
-                      <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="text-5xl drop-shadow-sm group-hover:scale-110 transition-transform">{getProductEmoji(product.name, product.category?.name)}</span>
-                    )}
-                    {qty > 0 && (
-                      <span className="absolute top-1.5 right-1.5 bg-indigo-600 text-white text-[11px] font-bold rounded-full min-w-[20px] h-5 px-1 flex items-center justify-center shadow">
-                        {qty}
-                      </span>
-                    )}
-                  </div>
-                  <div className="px-2.5 pt-2 pb-1">
-                    <p className="text-sm font-semibold text-gray-800 leading-tight line-clamp-2 min-h-[2.5em]">{product.name}</p>
-                    <p className="text-[11px] text-gray-400 mt-0.5 truncate">{product.category?.name}</p>
-                  </div>
-                </button>
-
-                <div className="px-2.5 pb-2.5 mt-auto flex items-center justify-between">
-                  <span className="text-indigo-600 font-bold text-sm">₹{product.price}</span>
-                  {qty > 0 ? (
-                    <div className="flex items-center gap-1.5 bg-indigo-50 rounded-full px-1 py-0.5">
-                      <button onClick={() => qty > 1 ? updateQty(product.id, qty - 1) : removeItem(product.id)} className="w-5 h-5 flex items-center justify-center rounded-full bg-white text-indigo-600 shadow-sm hover:bg-indigo-100">
-                        <Minus size={11} />
-                      </button>
-                      <span className="text-xs font-bold text-indigo-700 w-4 text-center">{qty}</span>
-                      <button onClick={() => addItem(product)} className="w-5 h-5 flex items-center justify-center rounded-full bg-indigo-600 text-white shadow-sm hover:bg-indigo-700">
-                        <Plus size={11} />
-                      </button>
-                    </div>
-                  ) : (
-                    <button onClick={() => addItem(product)} className="bg-indigo-600 text-white rounded-full p-1 hover:bg-indigo-700 transition-colors">
-                      <Plus size={14} />
+          {isLoading ? (
+            Array.from({ length: 12 }).map((_, i) => <ProductSkeleton key={i} />)
+          ) : (
+            <>
+              {filtered.map(product => {
+                const qty = qtyOf(product.id);
+                const color = product.category?.color || '#6366f1';
+                return (
+                  <div key={product.id}
+                    className="relative bg-white border border-gray-200 rounded-2xl overflow-hidden text-left hover:border-indigo-300 hover:shadow-lg transition-all group flex flex-col"
+                  >
+                    <button
+                      onClick={(e) => { e.stopPropagation(); toggleFavorite(product.id); }}
+                      title={favorites.has(product.id) ? 'Remove from favorites' : 'Add to favorites'}
+                      className="absolute top-1.5 left-1.5 z-10 w-6 h-6 flex items-center justify-center rounded-full bg-white/80 backdrop-blur-sm shadow-sm hover:bg-white transition-colors"
+                    >
+                      <Star size={13} className={favorites.has(product.id) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-400'} />
                     </button>
-                  )}
+                    <button onClick={() => addItem(product)} className="block w-full text-left">
+                      <div className="relative w-full aspect-[4/3] flex items-center justify-center overflow-hidden" style={{ background: `linear-gradient(135deg, ${color}22, ${color}08)` }}>
+                        {product.imageUrl ? (
+                          <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-5xl drop-shadow-sm group-hover:scale-110 transition-transform">{getProductEmoji(product.name, product.category?.name)}</span>
+                        )}
+                        {qty > 0 && (
+                          <span className="absolute top-1.5 right-1.5 bg-indigo-600 text-white text-[11px] font-bold rounded-full min-w-[20px] h-5 px-1 flex items-center justify-center shadow">
+                            {qty}
+                          </span>
+                        )}
+                      </div>
+                      <div className="px-2.5 pt-2 pb-1">
+                        <p className="text-sm font-semibold text-gray-800 leading-tight line-clamp-2 min-h-[2.5em]">{product.name}</p>
+                        <p className="text-[11px] text-gray-400 mt-0.5 truncate">{product.category?.name}</p>
+                      </div>
+                    </button>
+
+                    <div className="px-2.5 pb-2.5 mt-auto flex items-center justify-between">
+                      <span className="text-indigo-600 font-bold text-sm">₹{product.price}</span>
+                      {qty > 0 ? (
+                        <div className="flex items-center gap-1.5 bg-indigo-50 rounded-full px-1 py-0.5">
+                          <button onClick={() => qty > 1 ? updateQty(product.id, qty - 1) : removeItem(product.id)} className="w-5 h-5 flex items-center justify-center rounded-full bg-white text-indigo-600 shadow-sm hover:bg-indigo-100">
+                            <Minus size={11} />
+                          </button>
+                          <span className="text-xs font-bold text-indigo-700 w-4 text-center">{qty}</span>
+                          <button onClick={() => addItem(product)} className="w-5 h-5 flex items-center justify-center rounded-full bg-indigo-600 text-white shadow-sm hover:bg-indigo-700">
+                            <Plus size={11} />
+                          </button>
+                        </div>
+                      ) : (
+                        <button onClick={() => addItem(product)} className="bg-indigo-600 text-white rounded-full p-1 hover:bg-indigo-700 transition-colors">
+                          <Plus size={14} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+              {filtered.length === 0 && (
+                <div className="col-span-full text-center text-gray-400 py-12">
+                  <PackageSearch size={40} className="mx-auto mb-2 opacity-30" />
+                  <p className="text-sm">No products found</p>
+                  {search && <p className="text-xs mt-1">Try a different search term</p>}
                 </div>
-              </div>
-            );
-          })}
-          {filtered.length === 0 && (
-            <div className="col-span-full text-center text-gray-400 py-12">
-              <PackageSearch size={40} className="mx-auto mb-2 opacity-30" />
-              <p className="text-sm">No products found</p>
-              {search && <p className="text-xs mt-1">Try a different search term</p>}
-            </div>
+              )}
+            </>
           )}
         </div>
       </div>
     </div>
   );
-}
+});

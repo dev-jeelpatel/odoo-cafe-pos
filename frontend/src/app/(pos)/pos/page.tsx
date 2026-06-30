@@ -1,9 +1,9 @@
 'use client';
 import { useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import Sidebar from '@/components/ui/Sidebar';
 import ProductGrid from '@/components/pos/ProductGrid';
 import CartPanel from '@/components/pos/CartPanel';
-import KeyboardShortcutsModal from '@/components/pos/KeyboardShortcutsModal';
 import { Menu, Clock, Keyboard } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
@@ -11,6 +11,9 @@ import { useSidebar } from '@/contexts/SidebarContext';
 import { avatarUrl } from '@/lib/avatar';
 import { format } from 'date-fns';
 import clsx from 'clsx';
+
+// Loaded only when the user clicks the keyboard icon — not part of the critical bundle
+const KeyboardShortcutsModal = dynamic(() => import('@/components/pos/KeyboardShortcutsModal'), { ssr: false });
 
 export default function POSPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -53,7 +56,7 @@ export default function POSPage() {
               <div className="w-7 h-7 rounded-full overflow-hidden bg-indigo-600 flex-shrink-0">
                 {user?.id && (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={avatarUrl(user.id)} alt={user.name} className="w-full h-full object-cover" />
+                  <img src={avatarUrl(user.id, user.name)} alt={user.name} className="w-full h-full object-cover" />
                 )}
               </div>
               <span className="hidden sm:block">{user?.name}</span>
@@ -61,7 +64,9 @@ export default function POSPage() {
           </div>
         </header>
 
-        <KeyboardShortcutsModal isOpen={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
+        {shortcutsOpen && (
+          <KeyboardShortcutsModal isOpen={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
+        )}
 
         <div className="flex-1 flex overflow-hidden">
           {/* Products */}

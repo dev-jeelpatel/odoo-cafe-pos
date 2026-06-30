@@ -4,7 +4,7 @@ import './globals.css';
 import { Toaster } from 'react-hot-toast';
 import Providers from './providers';
 
-const inter = Inter({ subsets: ['latin'] });
+const inter = Inter({ subsets: ['latin'], display: 'swap' });
 
 export const metadata: Metadata = {
   title: 'Cafe POS - Restaurant Management System',

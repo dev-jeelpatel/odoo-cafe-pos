@@ -6,7 +6,7 @@ import { SidebarProvider } from '@/contexts/SidebarContext';
 import { useState } from 'react';
 
 export default function Providers({ children }: { children: React.ReactNode }) {
-  const [queryClient] = useState(() => new QueryClient({ defaultOptions: { queries: { staleTime: 30000, retry: 1 } } }));
+  const [queryClient] = useState(() => new QueryClient({ defaultOptions: { queries: { staleTime: 5 * 60 * 1000, gcTime: 10 * 60 * 1000, retry: 1 } } }));
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
