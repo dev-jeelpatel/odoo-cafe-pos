@@ -6,6 +6,7 @@ import {
   getAdjustments, createAdjustment, approveAdjustment, rejectAdjustment,
   getValuation, getStockSummary, getLowStock, getExpiryReport, getMovementsReport,
 } from '../controllers/inventoryController';
+import { validate, createInventoryItemSchema, updateInventoryItemSchema } from '../schemas';
 
 const router = Router();
 router.use(authenticate);
@@ -18,9 +19,10 @@ router.put('/categories/:id', updateCategory);
 router.delete('/categories/:id', deleteCategory);
 
 router.get('/items', getItems);
-router.post('/items', createItem);
+router.post('/items', validate(createInventoryItemSchema), createItem);
 router.get('/items/:id', getItem);
-router.put('/items/:id', updateItem);
+router.put('/items/:id', validate(updateInventoryItemSchema), updateItem);
+router.patch('/items/:id', validate(updateInventoryItemSchema), updateItem);
 router.delete('/items/:id', deleteItem);
 router.get('/items/:id/movements', getItemMovements);
 

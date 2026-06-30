@@ -107,3 +107,19 @@ export const getMe = async (req: any, res: Response): Promise<void> => {
   });
   res.json(user);
 };
+
+export const logout = async (req: any, res: Response): Promise<void> => {
+  try {
+    // Close any open cashier sessions for this user
+    await prisma.session.updateMany({
+      where: { userId: req.user.id, status: 'OPEN' },
+      data: { status: 'CLOSED', closedAt: new Date() },
+    });
+    await prisma.auditLog.create({
+      data: { userId: req.user.id, action: 'LOGOUT', entityType: 'User', entityId: req.user.id },
+    });
+    res.json({ message: 'Logged out successfully' });
+  } catch (err: any) {
+    res.status(500).json({ message: 'Logout failed' });
+  }
+};
