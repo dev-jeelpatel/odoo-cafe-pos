@@ -34,6 +34,7 @@ export const protect = async (req: AuthRequest, res: Response, next: NextFunctio
   }
 };
 
+/** Requires ADMIN role */
 export const adminOnly = (req: AuthRequest, res: Response, next: NextFunction): void => {
   if (req.user?.role !== 'ADMIN') {
     res.status(403).json({ message: 'Admin access required' });
@@ -41,3 +42,13 @@ export const adminOnly = (req: AuthRequest, res: Response, next: NextFunction): 
   }
   next();
 };
+
+/** Requires one of the listed roles (case-insensitive) */
+export const requireRole = (...roles: string[]) =>
+  (req: AuthRequest, res: Response, next: NextFunction): void => {
+    if (!req.user || !roles.map(r => r.toUpperCase()).includes(req.user.role.toUpperCase())) {
+      res.status(403).json({ message: 'Access denied' });
+      return;
+    }
+    next();
+  };

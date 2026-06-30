@@ -26,7 +26,11 @@ export const updateUser = async (req: Request, res: Response): Promise<void> => 
 
 export const changePassword = async (req: Request, res: Response): Promise<void> => {
   try {
-    const hashed = await bcrypt.hash(req.body.password, 12);
+    const { password } = req.body;
+    if (!password || typeof password !== 'string' || password.length < 8 || password.length > 128) {
+      res.status(400).json({ message: 'Password must be 8–128 characters' }); return;
+    }
+    const hashed = await bcrypt.hash(password, 12);
     await prisma.user.update({ where: { id: req.params.id }, data: { password: hashed } });
     res.json({ message: 'Password updated' });
   } catch (err: any) { res.status(400).json({ message: err.message }); }
