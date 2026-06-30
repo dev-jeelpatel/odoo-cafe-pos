@@ -6,11 +6,11 @@ const nextConfig = {
   experimental: {
     optimizePackageImports: ['lucide-react', 'recharts', 'date-fns'],
   },
-
-  // Strip console.* in production builds
-  compiler: {
-    removeConsole: process.env.NODE_ENV === 'production' ? { exclude: ['error', 'warn'] } : false,
-  },
 };
+
+// Only strip console.* in production — SWC does not accept `false` as a value
+if (process.env.NODE_ENV === 'production') {
+  nextConfig.compiler = { removeConsole: { exclude: ['error', 'warn'] } };
+}
 
 module.exports = nextConfig;
