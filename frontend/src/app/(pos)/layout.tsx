@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -53,17 +53,15 @@ function AppSkeleton() {
 export default function PosLayout({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
   const router = useRouter();
-  // mounted starts false so server and client agree on the first render (both show skeleton),
-  // eliminating the hydration mismatch caused by localStorage being unavailable on the server.
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
-    if (mounted && !isLoading && !user) router.replace('/login');
-  }, [user, isLoading, router, mounted]);
+    if (!isLoading && !user) router.replace('/login');
+  }, [user, isLoading, router]);
 
-  if (!mounted || isLoading) return <AppSkeleton />;
+  // isLoading is true on every first render (server + client) because AuthContext
+  // defers the localStorage read to useLayoutEffect. This ensures server and client
+  // agree on the initial render (both show the skeleton), eliminating hydration errors.
+  if (isLoading) return <AppSkeleton />;
   if (!user) return null;
   return <>{children}</>;
 }

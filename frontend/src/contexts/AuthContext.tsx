@@ -1,5 +1,5 @@
 'use client';
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useLayoutEffect, ReactNode } from 'react';
 import { User, Session } from '@/types';
 import api from '@/lib/api';
 
@@ -16,30 +16,34 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-// Read localStorage synchronously so the first render already has the user —
-// this eliminates the spinner that was blocking FCP by ~2.5 s on slow networks.
 function readStorage() {
-  if (typeof window === 'undefined') return { storedToken: null, storedUser: null };
   try {
-    return {
-      storedToken: localStorage.getItem('token'),
-      storedUser: (() => {
-        const s = localStorage.getItem('user');
-        return s ? (JSON.parse(s) as User) : null;
-      })(),
-    };
+    const storedToken = localStorage.getItem('token');
+    const s = localStorage.getItem('user');
+    const storedUser = s ? (JSON.parse(s) as User) : null;
+    return { storedToken, storedUser };
   } catch {
     return { storedToken: null, storedUser: null };
   }
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const { storedToken, storedUser } = readStorage();
-  const [user, setUser] = useState<User | null>(storedUser);
+  // Always start with null / isLoading=true so the server render and the client's
+  // very first render agree — preventing the hydration mismatch that occurred when
+  // the client read localStorage synchronously inside useState (server has no window).
+  // useLayoutEffect fires synchronously before the browser paints, so returning users
+  // see their real content on the first visible frame with zero perceptible flash.
+  const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [token, setToken] = useState<string | null>(storedToken);
-  // isLoading is false from the start because we read localStorage synchronously above
-  const [isLoading, setIsLoading] = useState(false);
+  const [token, setToken] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useLayoutEffect(() => {
+    const { storedToken, storedUser } = readStorage();
+    setToken(storedToken);
+    setUser(storedUser);
+    setIsLoading(false);
+  }, []);
 
   useEffect(() => {
     if (token) {

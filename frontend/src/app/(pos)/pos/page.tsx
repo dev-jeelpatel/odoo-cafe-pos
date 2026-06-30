@@ -28,12 +28,13 @@ const KeyboardShortcutsModal = dynamic(() => import('@/components/pos/KeyboardSh
 export default function POSPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
-  const [now, setNow] = useState(new Date());
+  const [now, setNow] = useState<Date | null>(null);
   const { user } = useAuth();
   const { selectedTable } = useCart();
   const { collapsed } = useSidebar();
 
   useEffect(() => {
+    setNow(new Date());
     const id = setInterval(() => setNow(new Date()), 60000);
     return () => clearInterval(id);
   }, []);
@@ -55,10 +56,12 @@ export default function POSPage() {
             </span>
           )}
           <div className="ml-auto flex items-center gap-3 text-sm text-gray-600">
-            <div className="hidden md:flex items-center gap-1.5 text-gray-400">
-              <Clock size={14} />
-              <span className="tabular-nums">{format(now, 'h:mm a')}</span>
-            </div>
+            {now && (
+              <div className="hidden md:flex items-center gap-1.5 text-gray-400">
+                <Clock size={14} />
+                <span className="tabular-nums">{format(now, 'h:mm a')}</span>
+              </div>
+            )}
             <button onClick={() => setShortcutsOpen(true)} title="Keyboard shortcuts" className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-600 transition-colors">
               <Keyboard size={16} />
             </button>
