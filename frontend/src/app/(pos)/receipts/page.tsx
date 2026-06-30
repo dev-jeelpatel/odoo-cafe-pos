@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
 import PageLayout from '@/components/ui/PageLayout';
@@ -53,11 +53,11 @@ export default function ReceiptsPage() {
     queryFn: () => api.get('/receipt-email').then(r => r.data),
   });
 
-  const filtered = orders.filter(o => {
-    if (!search) return true;
+  const filtered = useMemo(() => {
+    if (!search) return orders;
     const q = search.toLowerCase();
-    return o.orderNumber.toLowerCase().includes(q) || o.customer?.name?.toLowerCase().includes(q) || o.customer?.email?.toLowerCase().includes(q);
-  });
+    return orders.filter(o => o.orderNumber.toLowerCase().includes(q) || o.customer?.name?.toLowerCase().includes(q) || o.customer?.email?.toLowerCase().includes(q));
+  }, [orders, search]);
 
   const sendEmail = async (order: ReceiptOrder) => {
     // emailInputs[order.id] is set on every keystroke; if undefined the input shows customer email as placeholder-value
@@ -75,12 +75,12 @@ export default function ReceiptsPage() {
     }
   };
 
-  const stats = {
+  const stats = useMemo(() => ({
     total: orders.length,
     revenue: orders.reduce((s, o) => s + o.totalAmount, 0),
     today: orders.filter(o => isToday(new Date(o.createdAt))).length,
     avg: orders.length ? orders.reduce((s, o) => s + o.totalAmount, 0) / orders.length : 0,
-  };
+  }), [orders]);
 
   return (
     <PageLayout title="Receipts" actions={

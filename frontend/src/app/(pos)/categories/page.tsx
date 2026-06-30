@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Category, Product } from '@/types';
 import api from '@/lib/api';
@@ -28,13 +28,21 @@ export default function CategoriesPage() {
   const { data: categories = [], isLoading } = useQuery<CategoryWithCount[]>({ queryKey: ['categories'], queryFn: () => api.get('/categories').then(r => r.data) });
   const { data: products = [] } = useQuery<Product[]>({ queryKey: ['products'], queryFn: () => api.get('/products').then(r => r.data) });
 
-  const productCount = (catId: string) => products.filter(p => p.categoryId === catId).length;
+  // Pre-compute product counts per category so render doesn't re-filter on every call
+  const productCountMap = useMemo(() => {
+    const m = new Map<string, number>();
+    products.forEach(p => m.set(p.categoryId, (m.get(p.categoryId) || 0) + 1));
+    return m;
+  }, [products]);
 
-  const filtered = categories
+  const productCount = (catId: string) => productCountMap.get(catId) || 0;
+
+  const filtered = useMemo(() => categories
     .filter(c => !search || c.name.toLowerCase().includes(search.toLowerCase()))
-    .sort((a, b) => a.name.localeCompare(b.name));
+    .sort((a, b) => a.name.localeCompare(b.name)),
+  [categories, search]);
 
-  const emptyCount = categories.filter(c => productCount(c.id) === 0).length;
+  const emptyCount = useMemo(() => categories.filter(c => !productCountMap.get(c.id)).length, [categories, productCountMap]);
 
   const setViewPref = (v: 'list'|'grid') => { setView(v); localStorage.setItem('cat-view', v); };
 

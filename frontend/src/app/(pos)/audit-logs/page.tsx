@@ -37,19 +37,19 @@ export default function AuditLogsPage() {
 
   const actionTypes = useMemo(() => Array.from(new Set(logs.map(l => l.action))), [logs]);
 
-  const filtered = logs.filter(log => {
+  const filtered = useMemo(() => logs.filter(log => {
     if (actionFilter !== 'ALL' && log.action !== actionFilter) return false;
     if (!search) return true;
     const q = search.toLowerCase();
     return (log.user?.name || '').toLowerCase().includes(q) || log.entityType.toLowerCase().includes(q) || log.action.toLowerCase().includes(q);
-  });
+  }), [logs, actionFilter, search]);
 
-  const stats = {
+  const stats = useMemo(() => ({
     total: logs.length,
     today: logs.filter(l => isToday(new Date(l.createdAt))).length,
     deletes: logs.filter(l => l.action === 'DELETE').length,
     users: new Set(logs.map(l => l.user?.name).filter(Boolean)).size,
-  };
+  }), [logs]);
 
   return (
     <PageLayout title="Audit Logs" actions={

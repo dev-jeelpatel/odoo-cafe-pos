@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Product, Category } from '@/types';
 import api from '@/lib/api';
@@ -32,18 +32,18 @@ export default function ProductsPage() {
 
   const setViewPref = (v: 'list'|'grid') => { setView(v); localStorage.setItem('prod-view', v); };
 
-  const filtered = products.filter(p => {
-    if (!search) return true;
+  const filtered = useMemo(() => {
+    if (!search) return products;
     const q = search.toLowerCase();
-    return p.name.toLowerCase().includes(q) || p.category?.name?.toLowerCase().includes(q) || p.description?.toLowerCase().includes(q);
-  });
+    return products.filter(p => p.name.toLowerCase().includes(q) || p.category?.name?.toLowerCase().includes(q) || p.description?.toLowerCase().includes(q));
+  }, [products, search]);
 
-  const stats = {
+  const stats = useMemo(() => ({
     total: products.length,
     active: products.filter(p => p.active).length,
     categories: new Set(products.map(p => p.categoryId)).size,
     avgPrice: products.length ? products.reduce((s, p) => s + p.price, 0) / products.length : 0,
-  };
+  }), [products]);
 
   const openCreate = () => {
     setEditing(null);
