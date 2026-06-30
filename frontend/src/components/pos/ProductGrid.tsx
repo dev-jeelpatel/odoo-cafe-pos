@@ -1,6 +1,7 @@
 'use client';
-import { useState, useRef, useEffect, memo } from 'react';
+import { useState, useRef, useEffect, memo, useMemo, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import Fuse from 'fuse.js';
 import { Product, Category } from '@/types';
 import api from '@/lib/api';
 import { useCart } from '@/contexts/CartContext';
@@ -27,6 +28,88 @@ function ProductSkeleton() {
   );
 }
 
+interface ProductCardProps {
+  product: Product;
+  qty: number;
+  isFavorite: boolean;
+  onAdd: (p: Product) => void;
+  onRemove: (id: string) => void;
+  onUpdateQty: (id: string, qty: number) => void;
+  onToggleFavorite: (id: string) => void;
+}
+
+// Extracted as a memo component so only the card whose qty/favorite changes re-renders
+// when the cart updates — prevents all N product cards re-rendering on every add/remove
+const ProductCard = memo(function ProductCard({
+  product, qty, isFavorite, onAdd, onRemove, onUpdateQty, onToggleFavorite,
+}: ProductCardProps) {
+  const color = product.category?.color || '#6366f1';
+  return (
+    <div className="relative bg-white border border-gray-200 rounded-2xl overflow-hidden text-left hover:border-indigo-300 hover:shadow-lg transition-all group flex flex-col">
+      <button
+        onClick={(e) => { e.stopPropagation(); onToggleFavorite(product.id); }}
+        title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+        className="absolute top-1.5 left-1.5 z-10 w-6 h-6 flex items-center justify-center rounded-full bg-white/80 backdrop-blur-sm shadow-sm hover:bg-white transition-colors"
+      >
+        <Star size={13} className={isFavorite ? 'fill-yellow-400 text-yellow-400' : 'text-gray-400'} />
+      </button>
+      <button onClick={() => onAdd(product)} className="block w-full text-left">
+        <div
+          className="relative w-full aspect-[4/3] flex items-center justify-center overflow-hidden"
+          style={{ background: `linear-gradient(135deg, ${color}22, ${color}08)` }}
+        >
+          {product.imageUrl ? (
+            <img
+              src={product.imageUrl}
+              alt={product.name}
+              className="w-full h-full object-cover"
+              loading="lazy"
+              decoding="async"
+            />
+          ) : (
+            <span className="text-5xl drop-shadow-sm group-hover:scale-110 transition-transform">
+              {getProductEmoji(product.name, product.category?.name)}
+            </span>
+          )}
+          {qty > 0 && (
+            <span className="absolute top-1.5 right-1.5 bg-indigo-600 text-white text-[11px] font-bold rounded-full min-w-[20px] h-5 px-1 flex items-center justify-center shadow">
+              {qty}
+            </span>
+          )}
+        </div>
+        <div className="px-2.5 pt-2 pb-1">
+          <p className="text-sm font-semibold text-gray-800 leading-tight line-clamp-2 min-h-[2.5em]">{product.name}</p>
+          <p className="text-[11px] text-gray-400 mt-0.5 truncate">{product.category?.name}</p>
+        </div>
+      </button>
+      <div className="px-2.5 pb-2.5 mt-auto flex items-center justify-between">
+        <span className="text-indigo-600 font-bold text-sm">₹{product.price}</span>
+        {qty > 0 ? (
+          <div className="flex items-center gap-1.5 bg-indigo-50 rounded-full px-1 py-0.5">
+            <button
+              onClick={() => qty > 1 ? onUpdateQty(product.id, qty - 1) : onRemove(product.id)}
+              className="w-5 h-5 flex items-center justify-center rounded-full bg-white text-indigo-600 shadow-sm hover:bg-indigo-100"
+            >
+              <Minus size={11} />
+            </button>
+            <span className="text-xs font-bold text-indigo-700 w-4 text-center">{qty}</span>
+            <button
+              onClick={() => onAdd(product)}
+              className="w-5 h-5 flex items-center justify-center rounded-full bg-indigo-600 text-white shadow-sm hover:bg-indigo-700"
+            >
+              <Plus size={11} />
+            </button>
+          </div>
+        ) : (
+          <button onClick={() => onAdd(product)} className="bg-indigo-600 text-white rounded-full p-1 hover:bg-indigo-700 transition-colors">
+            <Plus size={14} />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+});
+
 export default memo(function ProductGrid() {
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState('all');
@@ -52,14 +135,14 @@ export default memo(function ProductGrid() {
     if (saved) setFavorites(new Set(JSON.parse(saved)));
   }, []);
 
-  const toggleFavorite = (id: string) => {
+  const toggleFavorite = useCallback((id: string) => {
     setFavorites(prev => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id); else next.add(id);
       localStorage.setItem(FAVORITES_KEY, JSON.stringify([...next]));
       return next;
     });
-  };
+  }, []);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -83,22 +166,55 @@ export default memo(function ProductGrid() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [categories, search]);
 
-  const filtered = products.filter(p => {
-    const matchCat = activeCategory === 'all' || (activeCategory === 'favorites' ? favorites.has(p.id) : p.categoryId === activeCategory);
-    const matchSearch = p.name.toLowerCase().includes(search.toLowerCase());
-    return matchCat && matchSearch && p.active;
-  });
+  // Active products filtered by selected category — rebuilt only when products/category/favorites change
+  const categoryPool = useMemo(() => products.filter(p => {
+    if (!p.active) return false;
+    if (activeCategory === 'favorites') return favorites.has(p.id);
+    if (activeCategory !== 'all') return p.categoryId === activeCategory;
+    return true;
+  }), [products, activeCategory, favorites]);
 
-  const qtyOf = (productId: string) => items.find(i => i.product.id === productId)?.quantity || 0;
+  // Fuse.js index over the current category pool — O(1) fuzzy search instead of O(n) string scan
+  const poolFuse = useMemo(() => new Fuse(categoryPool, {
+    keys: ['name', 'category.name'],
+    threshold: 0.35,
+    minMatchCharLength: 1,
+  }), [categoryPool]);
+
+  const filtered = useMemo(() => {
+    if (!search) return categoryPool;
+    return poolFuse.search(search).map(r => r.item);
+  }, [categoryPool, poolFuse, search]);
+
+  // Stable Map<productId, qty> so ProductCard memo bails out for unaffected cards
+  const cartMap = useMemo(() => {
+    const m = new Map<string, number>();
+    items.forEach(i => m.set(i.product.id, i.quantity));
+    return m;
+  }, [items]);
+
+  // Stable callbacks so ProductCard never re-renders due to handler identity changes
+  const handleAdd = useCallback((p: Product) => addItem(p), [addItem]);
+  const handleRemove = useCallback((id: string) => removeItem(id), [removeItem]);
+  const handleUpdateQty = useCallback((id: string, qty: number) => updateQty(id, qty), [updateQty]);
 
   return (
     <div className="flex flex-col h-full">
       <div className="flex-shrink-0 mb-3">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-          <input ref={searchRef} value={search} onChange={e => setSearch(e.target.value)} placeholder="Search products... (press / to focus)" className="input pl-9 pr-9" />
+          <input
+            ref={searchRef}
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search products... (press / to focus)"
+            className="input pl-9 pr-9"
+          />
           {search && (
-            <button onClick={() => { setSearch(''); searchRef.current?.focus(); }} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+            <button
+              onClick={() => { setSearch(''); searchRef.current?.focus(); }}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            >
               <X size={16} />
             </button>
           )}
@@ -106,16 +222,24 @@ export default memo(function ProductGrid() {
       </div>
 
       <div className="flex gap-2 overflow-x-auto pb-2 flex-shrink-0 mb-3">
-        <button onClick={() => setActiveCategory('all')} className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap flex-shrink-0 transition-colors flex items-center gap-1.5 ${activeCategory === 'all' ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+        <button
+          onClick={() => setActiveCategory('all')}
+          className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap flex-shrink-0 transition-colors flex items-center gap-1.5 ${activeCategory === 'all' ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+        >
           <Sparkles size={12} /> All Items
         </button>
         {favorites.size > 0 && (
-          <button onClick={() => setActiveCategory('favorites')} className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap flex-shrink-0 transition-colors flex items-center gap-1.5 ${activeCategory === 'favorites' ? 'bg-yellow-400 text-yellow-900' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+          <button
+            onClick={() => setActiveCategory('favorites')}
+            className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap flex-shrink-0 transition-colors flex items-center gap-1.5 ${activeCategory === 'favorites' ? 'bg-yellow-400 text-yellow-900' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+          >
             <Star size={12} fill={activeCategory === 'favorites' ? 'currentColor' : 'none'} /> Favorites
           </button>
         )}
         {categories.map(cat => (
-          <button key={cat.id} onClick={() => setActiveCategory(cat.id)}
+          <button
+            key={cat.id}
+            onClick={() => setActiveCategory(cat.id)}
             className="px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap flex-shrink-0 transition-colors flex items-center gap-1.5"
             style={activeCategory === cat.id ? { backgroundColor: cat.color, color: 'white' } : { border: `2px solid ${cat.color}`, color: cat.color }}
           >
@@ -131,60 +255,18 @@ export default memo(function ProductGrid() {
             Array.from({ length: 12 }).map((_, i) => <ProductSkeleton key={i} />)
           ) : (
             <>
-              {filtered.map(product => {
-                const qty = qtyOf(product.id);
-                const color = product.category?.color || '#6366f1';
-                return (
-                  <div key={product.id}
-                    className="relative bg-white border border-gray-200 rounded-2xl overflow-hidden text-left hover:border-indigo-300 hover:shadow-lg transition-all group flex flex-col"
-                  >
-                    <button
-                      onClick={(e) => { e.stopPropagation(); toggleFavorite(product.id); }}
-                      title={favorites.has(product.id) ? 'Remove from favorites' : 'Add to favorites'}
-                      className="absolute top-1.5 left-1.5 z-10 w-6 h-6 flex items-center justify-center rounded-full bg-white/80 backdrop-blur-sm shadow-sm hover:bg-white transition-colors"
-                    >
-                      <Star size={13} className={favorites.has(product.id) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-400'} />
-                    </button>
-                    <button onClick={() => addItem(product)} className="block w-full text-left">
-                      <div className="relative w-full aspect-[4/3] flex items-center justify-center overflow-hidden" style={{ background: `linear-gradient(135deg, ${color}22, ${color}08)` }}>
-                        {product.imageUrl ? (
-                          <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
-                        ) : (
-                          <span className="text-5xl drop-shadow-sm group-hover:scale-110 transition-transform">{getProductEmoji(product.name, product.category?.name)}</span>
-                        )}
-                        {qty > 0 && (
-                          <span className="absolute top-1.5 right-1.5 bg-indigo-600 text-white text-[11px] font-bold rounded-full min-w-[20px] h-5 px-1 flex items-center justify-center shadow">
-                            {qty}
-                          </span>
-                        )}
-                      </div>
-                      <div className="px-2.5 pt-2 pb-1">
-                        <p className="text-sm font-semibold text-gray-800 leading-tight line-clamp-2 min-h-[2.5em]">{product.name}</p>
-                        <p className="text-[11px] text-gray-400 mt-0.5 truncate">{product.category?.name}</p>
-                      </div>
-                    </button>
-
-                    <div className="px-2.5 pb-2.5 mt-auto flex items-center justify-between">
-                      <span className="text-indigo-600 font-bold text-sm">₹{product.price}</span>
-                      {qty > 0 ? (
-                        <div className="flex items-center gap-1.5 bg-indigo-50 rounded-full px-1 py-0.5">
-                          <button onClick={() => qty > 1 ? updateQty(product.id, qty - 1) : removeItem(product.id)} className="w-5 h-5 flex items-center justify-center rounded-full bg-white text-indigo-600 shadow-sm hover:bg-indigo-100">
-                            <Minus size={11} />
-                          </button>
-                          <span className="text-xs font-bold text-indigo-700 w-4 text-center">{qty}</span>
-                          <button onClick={() => addItem(product)} className="w-5 h-5 flex items-center justify-center rounded-full bg-indigo-600 text-white shadow-sm hover:bg-indigo-700">
-                            <Plus size={11} />
-                          </button>
-                        </div>
-                      ) : (
-                        <button onClick={() => addItem(product)} className="bg-indigo-600 text-white rounded-full p-1 hover:bg-indigo-700 transition-colors">
-                          <Plus size={14} />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+              {filtered.map(product => (
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  qty={cartMap.get(product.id) || 0}
+                  isFavorite={favorites.has(product.id)}
+                  onAdd={handleAdd}
+                  onRemove={handleRemove}
+                  onUpdateQty={handleUpdateQty}
+                  onToggleFavorite={toggleFavorite}
+                />
+              ))}
               {filtered.length === 0 && (
                 <div className="col-span-full text-center text-gray-400 py-12">
                   <PackageSearch size={40} className="mx-auto mb-2 opacity-30" />

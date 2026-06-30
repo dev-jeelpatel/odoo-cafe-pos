@@ -4,7 +4,7 @@ const nextConfig = {
 
   // Tree-shake icon/chart/date libraries so only imported symbols are bundled
   experimental: {
-    optimizePackageImports: ['lucide-react', 'recharts', 'date-fns'],
+    optimizePackageImports: ['lucide-react', 'recharts', 'date-fns', 'fuse.js'],
   },
 };
 
